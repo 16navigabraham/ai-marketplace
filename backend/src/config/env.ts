@@ -18,13 +18,11 @@ const envSchema = z.object({
   // Redis
   REDIS_URL: z.string().default('redis://localhost:6379'),
 
-  // Blockchain
-  ETH_RPC_URL: z.string(),
-  POLYGON_RPC_URL: z.string(),
-  ARBITRUM_RPC_URL: z.string(),
-  BASE_RPC_URL: z.string(),
+  // Blockchain - Single Alchemy API key for all chains
+  ALCHEMY_API_KEY: z.string(),
 
   // LLM APIs
+  VENICE_API_KEY: z.string().optional(),
   OPENAI_API_KEY: z.string().optional(),
   ANTHROPIC_API_KEY: z.string().optional(),
 

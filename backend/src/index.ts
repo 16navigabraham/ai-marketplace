@@ -1,21 +1,46 @@
 import { createApp } from './app';
 import { env } from '@/config/env';
 import { logger } from '@/utils/logger';
+import { initializeDatabase, closeDatabase } from '@/database/data-source';
+
+let server: any;
 
 async function main() {
-  const app = createApp();
+  try {
+    // Initialize database
+    await initializeDatabase();
 
-  app.listen(env.PORT, () => {
-    logger.info(`🚀 Server running on http://localhost:${env.PORT}`);
-    logger.info(`📝 Environment: ${env.NODE_ENV}`);
-  });
+    // Create and start Express app
+    const app = createApp();
 
-  // Graceful shutdown
-  process.on('SIGTERM', () => {
-    logger.info('SIGTERM signal received: closing HTTP server');
-    process.exit(0);
-  });
+    server = app.listen(env.PORT, () => {
+      logger.info(`Server running on http://localhost:${env.PORT}`);
+      logger.info(`Environment: ${env.NODE_ENV}`);
+    });
+  } catch (error) {
+    logger.error('Failed to start server:', error);
+    process.exit(1);
+  }
 }
+
+// Graceful shutdown
+async function shutdown() {
+  logger.info('Shutdown signal received');
+
+  if (server) {
+    server.close(async () => {
+      await closeDatabase();
+      logger.info('Server closed');
+      process.exit(0);
+    });
+  } else {
+    await closeDatabase();
+    process.exit(0);
+  }
+}
+
+process.on('SIGTERM', shutdown);
+process.on('SIGINT', shutdown);
 
 main().catch((error) => {
   logger.error('Fatal error:', error);

@@ -60,6 +60,25 @@ class ApiClient {
     return data;
   }
 
+  async executeTrade(params: {
+    agentId: string;
+    amount: string;
+    price: string;
+    chain: string;
+    type: 'buy' | 'sell';
+  }): Promise<{ txHash: string; tradeId: string }> {
+    const { data } = await this.client.post('/marketplace/trade', params);
+    return data;
+  }
+
+  async approveToken(tokenAddress: string, amount: string): Promise<{ txHash: string }> {
+    const { data } = await this.client.post('/marketplace/approve', {
+      tokenAddress,
+      amount,
+    });
+    return data;
+  }
+
   // Portfolio
   async getPortfolio(userAddress: string): Promise<Portfolio[]> {
     const { data } = await this.client.get(`/portfolio/${userAddress}`);
@@ -93,6 +112,18 @@ class ApiClient {
 
   async getVotingPower(userAddress: string): Promise<{ power: string; veVIRTUAL: string }> {
     const { data } = await this.client.get(`/governance/voting-power/${userAddress}`);
+    return data;
+  }
+
+  async voteOnProposal(proposalId: string, voteType: 'for' | 'against'): Promise<any> {
+    const { data } = await this.client.post(`/governance/proposals/${proposalId}/vote`, {
+      voteType,
+    });
+    return data;
+  }
+
+  async createProposal(proposal: any): Promise<any> {
+    const { data } = await this.client.post('/governance/proposals', proposal);
     return data;
   }
 }

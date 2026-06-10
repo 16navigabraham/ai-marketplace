@@ -1,68 +1,91 @@
 'use client';
 
-import { useAgents } from '@/hooks/useAgent';
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { usePrivy } from '@privy-io/react-auth';
+import { Rocket, Globe, DollarSign, Building2, Lock } from 'lucide-react';
+import { Loader } from 'lucide-react';
 
 export default function Home() {
-  const { data, isLoading, error } = useAgents(1, 12);
+  const router = useRouter();
+  const { authenticated, isLoading, login } = usePrivy();
+
+  useEffect(() => {
+    if (!isLoading && authenticated) {
+      router.push('/onboarding');
+    }
+  }, [authenticated, isLoading, router]);
+
+  if (isLoading) {
+    return (
+      <main className="min-h-screen flex items-center justify-center">
+        <Loader className="animate-spin text-cyan-500" size={48} />
+      </main>
+    );
+  }
 
   return (
-    <main className="container mx-auto px-4 py-8">
-      <div className="mb-12 text-center">
-        <h1 className="text-5xl font-bold text-white mb-4">
+    <main className="min-h-screen flex items-center justify-center px-4 py-8">
+      <div className="max-w-2xl w-full text-center">
+        <div className="w-20 h-20 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-8">
+          <span className="text-4xl font-bold text-white">AI</span>
+        </div>
+
+        <h1 className="text-5xl md:text-6xl font-bold text-white mb-4">
           AI Agents Marketplace
         </h1>
-        <p className="text-xl text-slate-300 max-w-2xl mx-auto">
-          Trade, create, and govern AI agents across multiple blockchains
+
+        <p className="text-xl text-slate-300 mb-8 max-w-xl mx-auto">
+          Create, trade, and govern AI agents across multiple blockchains. No wallet
+          installation required.
         </p>
-      </div>
 
-      {isLoading && (
-        <div className="flex justify-center items-center h-64">
-          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-cyan-500"></div>
-        </div>
-      )}
-
-      {error && (
-        <div className="bg-red-500/10 border border-red-500 rounded-lg p-4 text-red-200">
-          Failed to load agents. Please try again later.
-        </div>
-      )}
-
-      {data && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {data.data.map((agent) => (
-            <div
-              key={agent.id}
-              className="bg-slate-800 border border-slate-700 rounded-lg p-6 hover:border-cyan-500 transition cursor-pointer"
-            >
-              <div className="flex items-center gap-4 mb-4">
-                {agent.avatarUrl && (
-                  <img
-                    src={agent.avatarUrl}
-                    alt={agent.name}
-                    className="w-12 h-12 rounded-full"
-                  />
-                )}
-                <div className="flex-1">
-                  <h3 className="text-lg font-semibold text-white">{agent.name}</h3>
-                  <p className="text-sm text-slate-400">{agent.type}</p>
-                </div>
-              </div>
-              <p className="text-slate-300 text-sm mb-4">{agent.description}</p>
-              <div className="flex gap-2 flex-wrap">
-                {agent.chains.map((chain) => (
-                  <span
-                    key={chain}
-                    className="px-2 py-1 bg-cyan-500/20 text-cyan-200 text-xs rounded"
-                  >
-                    {chain}
-                  </span>
-                ))}
+        <div className="bg-slate-800/50 border border-slate-700 rounded-lg p-8 mb-8 text-left">
+          <h2 className="text-2xl font-bold text-white mb-6 text-center">Why Choose Us?</h2>
+          <div className="space-y-4">
+            <div className="flex gap-3 items-start">
+              <Rocket className="w-8 h-8 text-cyan-400 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="font-semibold text-white">No Wallet Installation</p>
+                <p className="text-sm text-slate-400">Sign up with email or social login</p>
               </div>
             </div>
-          ))}
+            <div className="flex gap-3 items-start">
+              <Globe className="w-8 h-8 text-cyan-400 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="font-semibold text-white">Multi-Chain</p>
+                <p className="text-sm text-slate-400">Trade on Ethereum, Polygon, Arbitrum, Base</p>
+              </div>
+            </div>
+            <div className="flex gap-3 items-start">
+              <DollarSign className="w-8 h-8 text-cyan-400 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="font-semibold text-white">Fair Pricing</p>
+                <p className="text-sm text-slate-400">Bonding curves for price discovery</p>
+              </div>
+            </div>
+            <div className="flex gap-3 items-start">
+              <Building2 className="w-8 h-8 text-cyan-400 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="font-semibold text-white">Governance</p>
+                <p className="text-sm text-slate-400">Vote on protocol changes</p>
+              </div>
+            </div>
+          </div>
         </div>
-      )}
+
+        <button
+          onClick={() => login()}
+          className="w-full md:w-auto px-8 py-4 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-700 hover:to-blue-700 text-white font-bold text-lg rounded-lg transition transform hover:scale-105 mb-4 flex items-center justify-center gap-2"
+        >
+          <Lock size={20} />
+          Sign In to Get Started
+        </button>
+
+        <p className="text-slate-400 text-sm">
+          Sign in with email, Google, or GitHub. No credit card required.
+        </p>
+      </div>
     </main>
   );
 }

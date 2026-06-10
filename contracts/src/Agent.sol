@@ -5,22 +5,40 @@ import "openzeppelin-contracts/contracts/token/ERC721/ERC721.sol";
 import "openzeppelin-contracts/contracts/access/Ownable.sol";
 import "openzeppelin-contracts/contracts/utils/Counters.sol";
 
+/// @title Agent
+/// @notice ERC-721 NFT contract representing AI agents in the marketplace
+/// @dev Each agent is an NFT with metadata and an associated ERC-20 token
 contract Agent is ERC721, Ownable {
     using Counters for Counters.Counter;
 
+    /// @dev Counter for tracking token IDs
     Counters.Counter private _tokenIds;
 
+    /// @notice Metadata struct for an agent
     struct AgentMetadata {
+        /// @dev The name of the agent
         string name;
+        /// @dev The description of the agent
         string description;
-        string agentType; // writing, research, governance, butler
+        /// @dev The type of agent (writing, research, governance, butler)
+        string agentType;
+        /// @dev The address of the agent creator
         address creator;
+        /// @dev The timestamp when the agent was created
         uint256 createdAt;
     }
 
+    /// @notice Mapping from token ID to agent metadata
     mapping(uint256 => AgentMetadata) public agentMetadata;
-    mapping(uint256 => address) public agentTokenAddress; // tokenId -> agent token contract
 
+    /// @notice Mapping from token ID to associated ERC-20 token address
+    mapping(uint256 => address) public agentTokenAddress;
+
+    /// @notice Emitted when a new agent is created
+    /// @param tokenId The ID of the created agent NFT
+    /// @param creator The address of the agent creator
+    /// @param name The name of the agent
+    /// @param agentType The type of the agent
     event AgentCreated(
         uint256 indexed tokenId,
         address indexed creator,
@@ -28,10 +46,19 @@ contract Agent is ERC721, Ownable {
         string agentType
     );
 
+    /// @notice Emitted when an agent's token address is set
+    /// @param tokenId The ID of the agent
+    /// @param tokenAddress The address of the associated ERC-20 token
     event AgentTokenAddressSet(uint256 indexed tokenId, address tokenAddress);
 
+    /// @notice Initialize the Agent contract
     constructor() ERC721("AI Agent", "AGENT") {}
 
+    /// @notice Create a new agent NFT
+    /// @param name The name of the agent
+    /// @param description The description of the agent
+    /// @param agentType The type of agent (writing, research, governance, butler)
+    /// @return tokenId The ID of the created agent NFT
     function createAgent(
         string memory name,
         string memory description,
@@ -58,6 +85,10 @@ contract Agent is ERC721, Ownable {
         return tokenId;
     }
 
+    /// @notice Set the ERC-20 token address for an agent
+    /// @dev Only the owner of the agent NFT can call this function
+    /// @param tokenId The ID of the agent
+    /// @param tokenAddress The address of the ERC-20 token
     function setAgentTokenAddress(uint256 tokenId, address tokenAddress) public {
         require(ownerOf(tokenId) == msg.sender, "Only token owner can set token address");
         require(tokenAddress != address(0), "Invalid token address");
@@ -67,6 +98,9 @@ contract Agent is ERC721, Ownable {
         emit AgentTokenAddressSet(tokenId, tokenAddress);
     }
 
+    /// @notice Get the metadata for an agent
+    /// @param tokenId The ID of the agent
+    /// @return metadata The agent's metadata
     function getAgentMetadata(uint256 tokenId)
         public
         view
@@ -76,6 +110,15 @@ contract Agent is ERC721, Ownable {
         return agentMetadata[tokenId];
     }
 
+    /// @notice Get the total number of agents created
+    /// @return The total count of agents
+    function getTotalAgents() public view returns (uint256) {
+        return _tokenIds.current();
+    }
+
+    /// @notice Check if an agent NFT exists
+    /// @param tokenId The ID of the agent
+    /// @return true if the agent exists, false otherwise
     function _exists(uint256 tokenId) internal view returns (bool) {
         return ownerOf(tokenId) != address(0);
     }

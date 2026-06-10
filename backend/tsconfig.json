@@ -31,7 +31,8 @@
       "@/models/*": ["./src/models/*"],
       "@/config/*": ["./src/config/*"],
       "@/types/*": ["./src/types/*"],
-      "@/utils/*": ["./src/utils/*"]
+      "@/utils/*": ["./src/utils/*"],
+      "@/database/*": ["./src/database/*"]
     }
   },
   "include": ["src"],
