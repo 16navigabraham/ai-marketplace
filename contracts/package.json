@@ -1,0 +1,19 @@
+{
+  "name": "@ai-marketplace/contracts",
+  "version": "1.0.0",
+  "description": "AI Agents Marketplace - Smart Contracts",
+  "private": true,
+  "scripts": {
+    "compile": "forge build",
+    "test": "forge test -vvv",
+    "test:gas": "forge test --gas-report",
+    "deploy:local": "forge script script/Deploy.s.sol --rpc-url http://localhost:8545 --broadcast",
+    "deploy:eth": "forge script script/Deploy.s.sol --rpc-url $ETH_RPC_URL --private-key $PRIVATE_KEY --broadcast --verify",
+    "deploy:polygon": "forge script script/Deploy.s.sol --rpc-url $POLYGON_RPC_URL --private-key $PRIVATE_KEY --broadcast --verify",
+    "deploy:arbitrum": "forge script script/Deploy.s.sol --rpc-url $ARBITRUM_RPC_URL --private-key $PRIVATE_KEY --broadcast --verify",
+    "deploy:base": "forge script script/Deploy.s.sol --rpc-url $BASE_RPC_URL --private-key $PRIVATE_KEY --broadcast --verify"
+  },
+  "devDependencies": {
+    "forge-std": "github:foundry-rs/forge-std#master"
+  }
+}
