@@ -83,7 +83,9 @@ export function WalletProvider({ children }: { children: ReactNode }) {
             chainConfig: {
               chainNamespace: baseMod.CHAIN_NAMESPACES.EIP155,
               chainId: CHAIN_ID_HEX,
-              rpcTarget: 'https://rpc.ankr.com/eth',
+              // Keyless public RPC (overridable via env).
+              rpcTarget:
+                process.env.NEXT_PUBLIC_ETH_RPC || 'https://ethereum-rpc.publicnode.com',
               displayName: 'Ethereum',
               ticker: 'ETH',
               tickerName: 'Ethereum',
