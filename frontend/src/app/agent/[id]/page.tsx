@@ -6,6 +6,7 @@ import { useTrades, useMarketPrice } from '@/hooks/useMarketplace';
 import { useAppStore } from '@/store/useAppStore';
 import { PriceChart } from '@/components/PriceChart';
 import { TradeForm, TradeFormData } from '@/components/TradeForm';
+import { DelegationPanel } from '@/components/DelegationPanel';
 import { Spinner } from '@/components/PageHeader';
 import {
   formatPrice,
@@ -212,6 +213,9 @@ export default function AgentDetailPage({ params }: PageProps) {
               <p className="text-slate-400">Connect your wallet to trade</p>
             </div>
           )}
+
+          {/* ERC-7710 delegation — grant this agent a USDC spend allowance */}
+          <DelegationPanel agentName={agent.name} delegateAddress={agent.creatorAddress} />
 
           <div className="card p-6">
             <h3 className="mb-4 font-semibold text-white">Quick Stats</h3>
