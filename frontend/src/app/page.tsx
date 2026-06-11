@@ -65,8 +65,8 @@ export default function Home() {
     <main className="relative mx-auto max-w-6xl px-4 pb-24 pt-16 md:pt-24">
       {/* Hero */}
       <section className="animate-fade-up text-center">
-        <div className="mx-auto mb-8 flex h-20 w-20 items-center justify-center rounded-2xl bg-gradient-to-br from-cyan-400 to-blue-500 shadow-[0_18px_40px_-18px_rgba(230,165,40,0.55)] animate-float">
-          <Network className="h-10 w-10 text-[#1a1509]" strokeWidth={2.25} />
+        <div className="mx-auto mb-8 flex h-16 w-16 items-center justify-center rounded-2xl bg-white">
+          <Network className="h-8 w-8 text-[#0a0a0a]" strokeWidth={2} />
         </div>
 
         <div className="mb-6 flex justify-center">
@@ -82,7 +82,7 @@ export default function Home() {
 
         <p className="mx-auto mt-6 max-w-2xl text-lg text-slate-300 md:text-xl">
           Create, trade, and govern autonomous AI agents across four blockchains —
-          with <span className="text-cyan-300">no wallet extension required.</span>
+          with <span className="text-white">no wallet extension required.</span>
         </p>
 
         <div className="mt-10 flex flex-col items-center justify-center gap-3 sm:flex-row">

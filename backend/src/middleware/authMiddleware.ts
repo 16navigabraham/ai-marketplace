@@ -10,17 +10,18 @@ declare global {
   }
 }
 
-export function authMiddleware(req: Request, res: Response, next: NextFunction) {
+/**
+ * Optional auth: if a valid Bearer token is present it populates
+ * req.userId / req.userAddress; otherwise the request continues unauthenticated.
+ * Public reads (browsing agents, prices) work without a token; user-specific
+ * writes are guarded separately by `authorizeUser` / `requireAuth`.
+ */
+export function authMiddleware(req: Request, _res: Response, next: NextFunction) {
   const authHeader = req.headers.authorization;
-
-  if (!authHeader) {
-    return next(new AppError('Missing authorization header', 401, 'AUTH_REQUIRED'));
-  }
+  if (!authHeader) return next();
 
   const parts = authHeader.split(' ');
-  if (parts.length !== 2 || parts[0].toLowerCase() !== 'bearer') {
-    return next(new AppError('Invalid authorization header format', 401, 'INVALID_AUTH_FORMAT'));
-  }
+  if (parts.length !== 2 || parts[0].toLowerCase() !== 'bearer') return next();
 
   const token = parts[1];
 
@@ -32,17 +33,15 @@ export function authMiddleware(req: Request, res: Response, next: NextFunction) 
     const decoded = JSON.parse(Buffer.from(segment, 'base64').toString('utf-8'));
 
     const address = decoded?.wallet?.address;
-    if (!decoded?.sub || !address) {
-      return next(new AppError('Invalid token format', 401, 'INVALID_TOKEN'));
+    if (decoded?.sub && address) {
+      req.userId = decoded.sub;
+      req.userAddress = String(address).toLowerCase();
     }
-
-    req.userId = decoded.sub;
-    req.userAddress = String(address).toLowerCase();
-
-    next();
-  } catch (error) {
-    next(new AppError('Invalid authentication token', 401, 'AUTH_INVALID'));
+  } catch {
+    // Ignore malformed tokens — treat as unauthenticated.
   }
+
+  next();
 }
 
 export function requireAuth(req: Request, res: Response, next: NextFunction) {

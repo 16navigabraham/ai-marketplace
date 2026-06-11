@@ -1,11 +1,23 @@
 import type { Config } from 'tailwindcss';
 
 /**
- * Palette: "Graphite & Amber".
- * The legacy class names (slate / cyan / blue / sky) are remapped here to a
- * warm neutral + amber accent so the whole app recolors from one place.
- * To re-theme, change the `cyan`/`blue` ramps (accent) or `slate` ramp (neutral).
+ * Monochrome palette — true neutral grays, no hue.
+ * Legacy class names (slate / cyan / blue / sky) are all mapped to the same
+ * neutral ramp so the entire UI is grayscale. Gain/loss green-red (emerald/red)
+ * are intentionally left untouched since they convey data, not branding.
  */
+const NEUTRAL = {
+  100: '#f5f5f5',
+  200: '#e5e5e5',
+  300: '#d4d4d4',
+  400: '#a3a3a3',
+  500: '#737373',
+  600: '#525252',
+  700: '#404040',
+  800: '#262626',
+  900: '#171717',
+};
+
 const config: Config = {
   content: [
     './src/pages/**/*.{js,ts,jsx,tsx,mdx}',
@@ -15,38 +27,11 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        // Warm neutral graphite (replaces cold blue-slate)
-        slate: {
-          100: '#f5f3ee',
-          200: '#e9e6df',
-          300: '#cfccc3',
-          400: '#9a958b',
-          500: '#6f6b62',
-          600: '#46433d',
-          700: '#2c2a26',
-          800: '#1b1a17',
-          900: '#121110',
-        },
-        // Amber accent (replaces cyan)
-        cyan: {
-          100: '#fdf0d2',
-          200: '#fbe1a4',
-          300: '#f6cd72',
-          400: '#eeb446',
-          500: '#e09c20',
-          600: '#c07e12',
-          700: '#97620f',
-        },
-        // Bronze (gradient partner, replaces blue)
-        blue: {
-          300: '#f0c468',
-          400: '#dd9a25',
-          500: '#bd7c12',
-          600: '#945e0c',
-        },
-        sky: {
-          400: '#eeb446',
-        },
+        slate: NEUTRAL,
+        cyan: NEUTRAL,
+        blue: NEUTRAL,
+        indigo: NEUTRAL,
+        sky: NEUTRAL,
       },
       fontFamily: {
         sans: [

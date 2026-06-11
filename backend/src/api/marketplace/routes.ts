@@ -47,15 +47,31 @@ router.get('/price/:agentTokenId', async (req: Request, res: Response) => {
     const { agentTokenId } = req.params;
     const chain = (req.query.chain as string) || 'ethereum';
 
-    const priceData = await marketplaceService.getTokenPrice(agentTokenId, chain);
-
-    res.json({
-      agentTokenId,
-      chain,
-      price: priceData.price,
-      marketCap: priceData.marketCap,
-      priceChange24h: priceData.priceChange24h,
-    });
+    try {
+      const priceData = await marketplaceService.getTokenPrice(agentTokenId, chain);
+      return res.json({
+        agentTokenId,
+        chain,
+        price: priceData.price,
+        marketCap: priceData.marketCap,
+        priceChange24h: priceData.priceChange24h,
+        change24h: String(priceData.priceChange24h),
+      });
+    } catch (error) {
+      // Agents created in the UI may not have a token/price row yet — return a
+      // neutral default rather than surfacing a 404 to the marketplace.
+      if (error instanceof AppError && error.code === 'TOKEN_NOT_FOUND') {
+        return res.json({
+          agentTokenId,
+          chain,
+          price: '0',
+          marketCap: '0',
+          priceChange24h: 0,
+          change24h: '0',
+        });
+      }
+      throw error;
+    }
   } catch (error) {
     if (error instanceof AppError) throw error;
     logger.error('Failed to get token price:', error);

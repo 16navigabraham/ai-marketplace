@@ -3,14 +3,11 @@
 @tailwind utilities;
 
 :root {
-  --bg: #100f0d;
-  --surface: 32 30 26; /* rgb of #201e1a, used with /alpha */
-  --border: 245 240 230; /* warm white for low-alpha borders */
-  --accent: #e6a528;
-  --accent-bright: #f6c356;
-  --accent-ink: #1a1509; /* dark text on accent */
-  --text: #f1ede4;
-  --text-muted: #9a958b;
+  --bg: #0a0a0a;
+  --surface: 38 38 38; /* neutral-800 rgb */
+  --border: 163 163 163; /* neutral-400 rgb, used at low alpha */
+  --text: #fafafa;
+  --text-muted: #a3a3a3;
 }
 
 * {
@@ -28,29 +25,13 @@ body {
   -moz-osx-font-smoothing: grayscale;
   background-color: var(--bg);
   color: var(--text);
-  letter-spacing: -0.011em;
 }
 
-/* ---------- App background: warm graphite, faint amber wash, fine grid ---------- */
+/* Clean neutral background — no color, no decorative grid */
 .app-bg {
   position: relative;
   min-height: 100vh;
   background-color: var(--bg);
-  background-image:
-    radial-gradient(48rem 36rem at 88% -8%, rgba(230, 165, 40, 0.07), transparent 60%),
-    radial-gradient(40rem 34rem at -6% 4%, rgba(230, 165, 40, 0.04), transparent 55%);
-}
-
-.app-bg::before {
-  content: '';
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  background-image:
-    linear-gradient(rgba(245, 240, 230, 0.022) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(245, 240, 230, 0.022) 1px, transparent 1px);
-  background-size: 56px 56px;
-  mask-image: radial-gradient(ellipse 90% 55% at 50% 0%, #000 35%, transparent 100%);
 }
 
 ::-webkit-scrollbar {
@@ -61,45 +42,41 @@ body {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(245, 240, 230, 0.1);
+  background: rgba(163, 163, 163, 0.25);
   border-radius: 8px;
   border: 2px solid var(--bg);
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(245, 240, 230, 0.18);
+  background: rgba(163, 163, 163, 0.4);
 }
 
 ::selection {
-  background: rgba(230, 165, 40, 0.28);
-  color: #fff;
+  background: rgba(245, 245, 245, 0.2);
 }
 
 @layer components {
-  /* Solid surface card — flat, hairline border, soft depth (no neon glow) */
+  /* Neutral card: subtle surface, hairline border */
   .card {
     @apply relative rounded-xl border;
-    background-color: rgb(var(--surface) / 0.55);
-    border-color: rgb(var(--border) / 0.08);
-    box-shadow: 0 1px 0 0 rgb(var(--border) / 0.04) inset;
+    background-color: rgb(var(--surface) / 0.35);
+    border-color: rgb(var(--border) / 0.14);
   }
   .card-hover {
-    @apply transition-all duration-200;
+    @apply transition-colors duration-200;
   }
   .card-hover:hover {
-    border-color: rgb(var(--border) / 0.16);
-    background-color: rgb(var(--surface) / 0.8);
-    transform: translateY(-2px);
+    border-color: rgb(var(--border) / 0.28);
+    background-color: rgb(var(--surface) / 0.55);
   }
 
-  /* Primary: solid amber, dark ink text — premium, not glowing */
+  /* Primary: white surface, near-black text (monochrome, Vercel-style) */
   .btn-primary {
-    @apply inline-flex items-center justify-center gap-2 rounded-lg px-5 py-2.5 text-sm font-semibold transition-all duration-150;
-    background-color: var(--accent);
-    color: var(--accent-ink);
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+    @apply inline-flex items-center justify-center gap-2 rounded-lg px-5 py-2.5 text-sm font-semibold transition-colors duration-150;
+    background-color: #fafafa;
+    color: #0a0a0a;
   }
   .btn-primary:hover {
-    background-color: var(--accent-bright);
+    background-color: #d4d4d4;
   }
   .btn-primary:active {
     transform: translateY(0.5px);
@@ -109,57 +86,45 @@ body {
     cursor: not-allowed;
   }
 
-  /* Ghost: hairline outline on warm surface */
+  /* Secondary: outlined neutral */
   .btn-ghost {
-    @apply inline-flex items-center justify-center gap-2 rounded-lg px-5 py-2.5 text-sm font-medium transition-all duration-150;
+    @apply inline-flex items-center justify-center gap-2 rounded-lg px-5 py-2.5 text-sm font-medium transition-colors duration-150;
     color: var(--text);
-    border: 1px solid rgb(var(--border) / 0.12);
-    background-color: rgb(var(--border) / 0.02);
+    border: 1px solid rgb(var(--border) / 0.2);
+    background-color: rgb(var(--border) / 0.04);
   }
   .btn-ghost:hover {
-    border-color: rgb(var(--border) / 0.22);
-    background-color: rgb(var(--border) / 0.06);
+    background-color: rgb(var(--border) / 0.1);
   }
 
   .chip {
     @apply inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium;
     color: var(--text-muted);
-    border: 1px solid rgb(var(--border) / 0.1);
-    background-color: rgb(var(--border) / 0.03);
+    border: 1px solid rgb(var(--border) / 0.16);
+    background-color: rgb(var(--border) / 0.05);
   }
 
-  /* Headings stay solid warm-white; the wordmark gets the amber wash */
+  /* Plain white headings/accents — no gradient, no color */
   .text-gradient {
-    background-image: linear-gradient(100deg, #f6efe1 0%, var(--accent-bright) 130%);
-    -webkit-background-clip: text;
-    background-clip: text;
-    color: transparent;
+    color: var(--text);
   }
   .text-gradient-accent {
-    color: var(--accent-bright);
+    color: var(--text);
   }
 
   .eyebrow {
     @apply inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold uppercase;
-    letter-spacing: 0.16em;
-    color: var(--accent-bright);
-    border: 1px solid rgba(230, 165, 40, 0.22);
-    background-color: rgba(230, 165, 40, 0.07);
+    letter-spacing: 0.1em;
+    color: var(--text-muted);
+    border: 1px solid rgb(var(--border) / 0.18);
+    background-color: rgb(var(--border) / 0.05);
   }
 }
 
 @layer utilities {
-  .animate-float {
-    animation: float 7s ease-in-out infinite;
-  }
   .animate-fade-up {
-    animation: fade-up 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
+    animation: fade-up 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
   }
-}
-
-@keyframes float {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-8px); }
 }
 
 @keyframes fade-up {

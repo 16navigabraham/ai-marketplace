@@ -43,8 +43,8 @@ export function Header() {
             href="/"
             className="flex items-center gap-2.5 text-xl font-bold text-white transition hover:opacity-90"
           >
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-cyan-400 to-blue-500 shadow-[0_4px_14px_-4px_rgba(230,165,40,0.5)]">
-              <Network className="h-5 w-5 text-[#1a1509]" strokeWidth={2.25} />
+            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-cyan-500 to-blue-600">
+              <Network className="h-5 w-5 text-white" strokeWidth={2} />
             </div>
             <span className="hidden text-gradient sm:inline">Synapse</span>
           </Link>
