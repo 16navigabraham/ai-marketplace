@@ -7,6 +7,7 @@ import { useAppStore } from '@/store/useAppStore';
 import { PriceChart } from '@/components/PriceChart';
 import { TradeForm, TradeFormData } from '@/components/TradeForm';
 import { DelegationPanel } from '@/components/DelegationPanel';
+import { RunAgentPanel } from '@/components/RunAgentPanel';
 import { Spinner } from '@/components/PageHeader';
 import {
   formatPrice,
@@ -94,6 +95,9 @@ export default function AgentDetailPage({ params }: PageProps) {
       <div className="mb-8 grid grid-cols-1 gap-8 lg:grid-cols-3">
         {/* Left */}
         <div className="space-y-6 lg:col-span-2">
+          {/* Run the agent — Venice AI in the main flow */}
+          <RunAgentPanel agentId={agent.id} agentName={agent.name} agentType={agent.type} />
+
           {/* Chain selector */}
           <div>
             <label className="mb-2 block text-sm font-medium text-slate-300">Blockchain</label>
