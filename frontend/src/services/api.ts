@@ -33,21 +33,27 @@ function normalizeRecord(value: unknown): Record<string, string> {
     : {};
 }
 
-function normalizeAgent(agent: Agent): Agent {
+function normalizeAgent(agent: Partial<Agent> | null | undefined): Agent {
+  const safeAgent = agent || {};
+
   return {
-    ...agent,
-    name: agent.name || 'Untitled Agent',
-    description: agent.description || '',
-    type: agent.type || 'writing',
-    chains: normalizeStringArray(agent.chains),
-    tokenAddresses: normalizeRecord(agent.tokenAddresses),
+    ...safeAgent,
+    id: safeAgent.id || '',
+    name: safeAgent.name || 'Untitled Agent',
+    description: safeAgent.description || '',
+    creatorAddress: safeAgent.creatorAddress || '',
+    type: safeAgent.type || 'writing',
+    chains: normalizeStringArray(safeAgent.chains),
+    tokenAddresses: normalizeRecord(safeAgent.tokenAddresses),
+    createdAt: safeAgent.createdAt || new Date(),
+    updatedAt: safeAgent.updatedAt || new Date(),
   };
 }
 
 function normalizePaginatedAgents(response: PaginatedResponse<Agent>): PaginatedResponse<Agent> {
   return {
     ...response,
-    data: Array.isArray(response.data) ? response.data.map(normalizeAgent) : [],
+    data: Array.isArray(response.data) ? response.data.map(normalizeAgent).filter((agent) => agent.id) : [],
   };
 }
 

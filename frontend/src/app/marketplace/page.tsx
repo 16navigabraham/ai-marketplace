@@ -14,7 +14,7 @@ export default function MarketplacePage() {
   if (authLoading) return <Spinner />;
   if (!authenticated) return null;
 
-  const agents = data?.data ?? [];
+  const agents = (data?.data ?? []).filter((agent) => agent?.id);
 
   return (
     <main className="mx-auto max-w-6xl px-4 py-12">
