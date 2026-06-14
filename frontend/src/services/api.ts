@@ -178,12 +178,14 @@ class ApiClient {
   async runInference(
     agentId: string,
     prompt: string,
-    type: 'writing' | 'research' | 'governance' | 'butler'
+    type: 'writing' | 'research' | 'governance' | 'butler',
+    payment?: any
   ): Promise<{ result: string; tokens: number }> {
     const { data } = await this.client.post('/inference/run', {
       agentId,
       prompt,
       type,
+      payment,
     });
     return data;
   }

@@ -4,6 +4,7 @@ import { InferenceRequest, InferenceResponse } from '@/types';
 import { InferenceService } from '@/services/InferenceService';
 import { AppError } from '@/middleware/errorHandler';
 import { logger } from '@/utils/logger';
+import { x402Guard } from '@/middleware/x402Guard';
 
 const router = Router();
 const inferenceService = new InferenceService();
@@ -16,8 +17,8 @@ const inferenceRequestSchema = z.object({
   userAddress: z.string().regex(/^0x[a-fA-F0-9]{40}$/).optional(),
 });
 
-// POST /api/inference/run - Run inference
-router.post('/run', async (req: Request<{}, any, InferenceRequest>, res: Response<InferenceResponse>) => {
+// POST /api/inference/run - Run inference (protected by x402Guard)
+router.post('/run', x402Guard, async (req: Request<{}, any, InferenceRequest>, res: Response<InferenceResponse>) => {
   try {
     const validated = inferenceRequestSchema.parse(req.body);
 

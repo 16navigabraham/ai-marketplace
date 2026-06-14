@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { apiClient } from '@/services/api';
 import type { AgentType } from '@/types';
 import { Sparkles, Loader2, AlertCircle, Cpu } from 'lucide-react';
+import { useAuth } from '@/providers/WalletProvider';
 
 /**
  * Runs the agent against the Venice API (via the backend InferenceService) and
@@ -14,13 +15,17 @@ export function RunAgentPanel({
   agentId,
   agentName,
   agentType,
+  creatorAddress,
 }: {
   agentId: string;
   agentName: string;
   agentType: AgentType;
+  creatorAddress?: string;
 }) {
+  const { smartAccount, signerAccount } = useAuth();
   const [prompt, setPrompt] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [output, setOutput] = useState<{ result: string; model?: string; tokens?: number } | null>(
     null
@@ -38,17 +43,82 @@ export function RunAgentPanel({
       setError('Enter a prompt for the agent.');
       return;
     }
+    if (!smartAccount || !signerAccount) {
+      setError('Connect your wallet first to authorize the payment for this request.');
+      return;
+    }
+
     setError(null);
     setOutput(null);
     setIsLoading(true);
+    setStatusMessage('Preparing request payment…');
+
     try {
-      const res = await apiClient.runInference(agentId, prompt, agentType);
+      const toAddress = creatorAddress || '0x27288C84887ED7Aa6Ad47948Df0908E6ce4A0053';
+      const nonce = '0x' + Array.from(crypto.getRandomValues(new Uint8Array(32)))
+        .map((b) => b.toString(16).padStart(2, '0'))
+        .join('');
+      const validAfter = 0;
+      const validBefore = Math.floor(Date.now() / 1000) + 300; // 5 mins
+
+      const domain = {
+        name: 'USD Coin',
+        version: '2',
+        chainId: 84532,
+        verifyingContract: '0x036cbd53842c5426634e7929541ec2318f3dcf7e',
+      } as const;
+
+      const types = {
+        TransferWithAuthorization: [
+          { name: 'from', type: 'address' },
+          { name: 'to', type: 'address' },
+          { name: 'value', type: 'uint256' },
+          { name: 'validAfter', type: 'uint256' },
+          { name: 'validBefore', type: 'uint256' },
+          { name: 'nonce', type: 'bytes32' },
+        ],
+      } as const;
+
+      const message = {
+        from: smartAccount.address as `0x${string}`,
+        to: toAddress as `0x${string}`,
+        value: 20000n, // 0.02 USDC
+        validAfter: BigInt(validAfter),
+        validBefore: BigInt(validBefore),
+        nonce: nonce as `0x${string}`,
+      } as const;
+
+      setStatusMessage('Please sign the micro-payment in your wallet…');
+      
+      const signature = await signerAccount.signTypedData({
+        domain,
+        types,
+        primaryType: 'TransferWithAuthorization',
+        message,
+      });
+
+      setStatusMessage('Sending prompt and settling on-chain payment…');
+
+      const payment = {
+        signature,
+        from: smartAccount.address,
+        to: toAddress,
+        value: '20000',
+        nonce,
+        validAfter,
+        validBefore,
+        tokenAddress: '0x036cbd53842c5426634e7929541ec2318f3dcf7e',
+        chainId: 84532,
+      };
+
+      const res = await apiClient.runInference(agentId, prompt, agentType, payment);
       setOutput(res as { result: string; model?: string; tokens?: number });
     } catch (err) {
       console.error('Inference failed:', err);
       setError(err instanceof Error ? err.message : 'Failed to run the agent');
     } finally {
       setIsLoading(false);
+      setStatusMessage(null);
     }
   };
 
@@ -78,10 +148,10 @@ export function RunAgentPanel({
         </div>
       )}
 
-      <button onClick={handleRun} disabled={isLoading} className="btn-primary mt-3 w-full">
+      <button onClick={handleRun} disabled={isLoading} className="btn-primary mt-3 w-full flex items-center justify-center gap-2">
         {isLoading ? (
           <>
-            <Loader2 className="h-4 w-4 animate-spin" /> Thinking…
+            <Loader2 className="h-4 w-4 animate-spin" /> {statusMessage || 'Thinking…'}
           </>
         ) : (
           <>

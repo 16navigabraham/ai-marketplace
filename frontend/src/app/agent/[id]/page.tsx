@@ -104,7 +104,7 @@ export default function AgentDetailPage({ params }: PageProps) {
         {/* Left */}
         <div className="space-y-6 lg:col-span-2">
           {/* Run the agent — Venice AI in the main flow */}
-          <RunAgentPanel agentId={agent.id} agentName={agent.name} agentType={agent.type} />
+          <RunAgentPanel agentId={agent.id} agentName={agent.name} agentType={agent.type} creatorAddress={agent.creatorAddress} />
 
           {/* Chain selector */}
           <div>
