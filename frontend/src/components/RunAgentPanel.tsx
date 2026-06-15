@@ -43,8 +43,20 @@ export function RunAgentPanel({
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
+  const [repTier, setRepTier] = useState<string | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Fetch reputation metrics
+  useEffect(() => {
+    if (agentId && agentId !== '00000000-0000-0000-0000-000000000000') {
+      apiClient.getReputation(agentId)
+        .then((data) => {
+          setRepTier(data.tier);
+        })
+        .catch(() => {});
+    }
+  }, [agentId]);
 
   // Initialize welcome message
   useEffect(() => {
@@ -191,6 +203,9 @@ export function RunAgentPanel({
                 <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500"></span>
               </span>
               <span className="text-[10px] text-emerald-400 font-medium">Online</span>
+              {repTier && (
+                <span className="text-[10px] text-cyan-400 font-semibold">· {repTier} Tier</span>
+              )}
             </div>
           </div>
         </div>

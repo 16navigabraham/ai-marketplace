@@ -8,6 +8,7 @@ import { PriceChart } from '@/components/PriceChart';
 import { TradeForm, TradeFormData } from '@/components/TradeForm';
 import { RelayPanel } from '@/components/RelayPanel';
 import { RunAgentPanel } from '@/components/RunAgentPanel';
+import { ReputationStakingPanel } from '@/components/ReputationStakingPanel';
 import { Spinner } from '@/components/PageHeader';
 import {
   formatPrice,
@@ -229,6 +230,9 @@ export default function AgentDetailPage({ params }: PageProps) {
               <p className="text-slate-400">Connect your wallet to trade</p>
             </div>
           )}
+
+          {/* Trust and reputation staking backing */}
+          <ReputationStakingPanel agentId={agent.id} />
 
           {/* Gasless USDC transfer via the 1Shot relayer (EIP-7710 + 7702) */}
           <RelayPanel recipient={agent.creatorAddress} recipientLabel={agent.name} />

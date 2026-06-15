@@ -7,7 +7,7 @@ import { useAppStore } from '@/store/useAppStore';
 import { apiClient } from '@/services/api';
 import { AgentType } from '@/types';
 import { PageHeader } from '@/components/PageHeader';
-import { Wallet, AlertCircle, Loader2, Sparkles } from 'lucide-react';
+import { Wallet, AlertCircle, Loader2, Sparkles, ShieldCheck } from 'lucide-react';
 
 const AGENT_TYPES: { label: string; value: AgentType }[] = [
   { label: 'Writing', value: 'writing' },
@@ -30,6 +30,10 @@ export default function CreateAgentPage() {
     description: '',
     type: 'writing' as AgentType,
     chains: ['ethereum'],
+    allowedActions: 'run-inference, transfer',
+    spendingLimit: '100',
+    targetProtocols: '0x036cbd53842c5426634e7929541ec2318f3dcf7e',
+    isLocked: true,
   });
 
   const handleInputChange = (
@@ -37,6 +41,11 @@ export default function CreateAgentPage() {
   ) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleCheckboxChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, checked } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: checked }));
   };
 
   const handleChainToggle = (chain: string) => {
@@ -58,17 +67,38 @@ export default function CreateAgentPage() {
       if (!formData.name.trim()) throw new Error('Agent name is required');
       if (!formData.description.trim()) throw new Error('Agent description is required');
       if (formData.chains.length === 0) throw new Error('Select at least one blockchain');
+      if (!formData.allowedActions.trim()) throw new Error('Allowed actions scope is required');
 
-      await apiClient.createAgent({ ...formData, creatorAddress: userAddress });
+      // Create agent NFT and metadata via API
+      await apiClient.createAgent({
+        ...formData,
+        creatorAddress: userAddress,
+        metadata: {
+          allowedActions: formData.allowedActions,
+          spendingLimit: formData.spendingLimit,
+          targetProtocols: formData.targetProtocols,
+          isLocked: formData.isLocked,
+        } as any,
+      });
+
       await queryClient.invalidateQueries({ queryKey: ['agents'] });
-      setFormData({ name: '', description: '', type: 'writing', chains: ['ethereum'] });
+      setFormData({
+        name: '',
+        description: '',
+        type: 'writing',
+        chains: ['ethereum'],
+        allowedActions: 'run-inference, transfer',
+        spendingLimit: '100',
+        targetProtocols: '0x036cbd53842c5426634e7929541ec2318f3dcf7e',
+        isLocked: true,
+      });
       router.push('/marketplace');
     } catch (err) {
       const message =
         err instanceof Error
           ? err.message
           : err && typeof err === 'object' && 'message' in err
-            ? String(err.message)
+            ? String((err as any).message)
             : 'Failed to create agent';
       setError(message);
     } finally {
@@ -97,66 +127,143 @@ export default function CreateAgentPage() {
       <PageHeader
         eyebrow="Create"
         title="Launch an AI Agent"
-        subtitle="Deploy your agent to the marketplace across one or more chains."
+        subtitle="Deploy your agent and configure its reputation card and delegation bounds."
       />
 
       <form onSubmit={handleSubmit} className="card space-y-6 p-8">
         <div>
-          <label className="mb-2 block text-sm font-medium text-slate-300">Agent Name</label>
-          <input
-            type="text"
-            name="name"
-            value={formData.name}
-            onChange={handleInputChange}
-            placeholder="e.g., ResearchBot 3000"
-            className={inputClass}
-            maxLength={255}
-          />
+          <h3 className="text-md font-semibold text-white mb-2">1. Identity Details</h3>
+          <div className="space-y-4">
+            <div>
+              <label className="mb-2 block text-sm font-medium text-slate-300">Agent Name</label>
+              <input
+                type="text"
+                name="name"
+                value={formData.name}
+                onChange={handleInputChange}
+                placeholder="e.g., ResearchBot 3000"
+                className={inputClass}
+                maxLength={255}
+              />
+            </div>
+
+            <div>
+              <label className="mb-2 block text-sm font-medium text-slate-300">Description</label>
+              <textarea
+                name="description"
+                value={formData.description}
+                onChange={handleInputChange}
+                placeholder="Describe what your agent does..."
+                rows={3}
+                className={inputClass}
+              />
+            </div>
+
+            <div>
+              <label className="mb-2 block text-sm font-medium text-slate-300">Agent Type</label>
+              <select
+                name="type"
+                value={formData.type}
+                onChange={handleInputChange}
+                className={inputClass}
+              >
+                {AGENT_TYPES.map((t) => (
+                  <option key={t.value} value={t.value} className="bg-slate-800">
+                    {t.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
         </div>
 
-        <div>
-          <label className="mb-2 block text-sm font-medium text-slate-300">Description</label>
-          <textarea
-            name="description"
-            value={formData.description}
-            onChange={handleInputChange}
-            placeholder="Describe what your agent does..."
-            rows={4}
-            className={inputClass}
-          />
-        </div>
+        <hr className="border-[#38260f]" />
 
         <div>
-          <label className="mb-2 block text-sm font-medium text-slate-300">Agent Type</label>
-          <select name="type" value={formData.type} onChange={handleInputChange} className={inputClass}>
-            {AGENT_TYPES.map((t) => (
-              <option key={t.value} value={t.value} className="bg-slate-800">
-                {t.label}
-              </option>
-            ))}
-          </select>
+          <h3 className="text-md font-semibold text-white mb-2">2. Character Card & Permission Scopes</h3>
+          <div className="space-y-4">
+            <div>
+              <label className="mb-2 block text-sm font-medium text-slate-300">Allowed Actions Scope</label>
+              <input
+                type="text"
+                name="allowedActions"
+                value={formData.allowedActions}
+                onChange={handleInputChange}
+                placeholder="e.g., run-inference, transfer, trade"
+                className={inputClass}
+              />
+            </div>
+
+            <div>
+              <label className="mb-2 block text-sm font-medium text-slate-300">Spending Limit (USDC)</label>
+              <input
+                type="number"
+                name="spendingLimit"
+                value={formData.spendingLimit}
+                onChange={handleInputChange}
+                className={inputClass}
+              />
+            </div>
+
+            <div>
+              <label className="mb-2 block text-sm font-medium text-slate-300">Allowed Target Protocols</label>
+              <input
+                type="text"
+                name="targetProtocols"
+                value={formData.targetProtocols}
+                onChange={handleInputChange}
+                placeholder="Contract address (e.g. USDC token contract)"
+                className={inputClass}
+              />
+            </div>
+          </div>
         </div>
 
+        <hr className="border-[#38260f]" />
+
         <div>
-          <label className="mb-3 block text-sm font-medium text-slate-300">Deploy to Chains</label>
-          <div className="grid grid-cols-2 gap-3">
-            {CHAINS.map((chain) => {
-              const active = formData.chains.includes(chain);
-              return (
-                <button
-                  key={chain}
-                  type="button"
-                  onClick={() => handleChainToggle(chain)}
-                  className={`rounded-xl border px-4 py-3 font-medium capitalize transition ${
-                    active
-                      ? 'border-cyan-500 bg-cyan-600 text-white'
-                      : 'border-[#493113] bg-[#23170a] text-slate-300 hover:border-[#76501d]'
-                  }`}
-                >
-                  {chain}
-                </button>
-              );
-            })}
+          <h3 className="text-md font-semibold text-white mb-2">3. Deploy & Reputation Snapshots</h3>
+          <div className="space-y-4">
+            <div>
+              <label className="mb-3 block text-sm font-medium text-slate-300">Deploy to Chains</label>
+              <div className="grid grid-cols-2 gap-3">
+                {CHAINS.map((chain) => {
+                  const active = formData.chains.includes(chain);
+                  return (
+                    <button
+                      key={chain}
+                      type="button"
+                      onClick={() => handleChainToggle(chain)}
+                      className={`rounded-xl border px-4 py-3 font-medium capitalize transition ${
+                        active
+                          ? 'border-cyan-500 bg-cyan-600 text-white'
+                          : 'border-[#493113] bg-[#23170a] text-slate-300 hover:border-[#76501d]'
+                      }`}
+                    >
+                      {chain}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="flex items-start gap-3 rounded-xl bg-[#1d140a] p-4 border border-[#ffb640]/10">
+              <input
+                type="checkbox"
+                name="isLocked"
+                checked={formData.isLocked}
+                onChange={handleCheckboxChange}
+                className="mt-1 h-4 w-4 rounded border-slate-700 bg-slate-800 text-cyan-600 focus:ring-cyan-500"
+              />
+              <div>
+                <label className="text-sm font-medium text-white flex items-center gap-1.5">
+                  <ShieldCheck className="h-4 w-4 text-emerald-400" /> Lock Configuration Snapshot
+                </label>
+                <p className="text-xs text-slate-400 mt-1">
+                  Locks this agent's identity and Character Card permissions until the reputation threshold is met, preventing silent changes.
+                </p>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -170,11 +277,11 @@ export default function CreateAgentPage() {
         <button type="submit" disabled={isLoading} className="btn-primary w-full">
           {isLoading ? (
             <>
-              <Loader2 className="h-4 w-4 animate-spin" /> Creating...
+              <Loader2 className="h-4 w-4 animate-spin" /> Deploying...
             </>
           ) : (
             <>
-              <Sparkles className="h-4 w-4" /> Create Agent
+              <Sparkles className="h-4 w-4" /> Deploy Agent
             </>
           )}
         </button>

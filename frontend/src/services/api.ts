@@ -218,6 +218,39 @@ class ApiClient {
     const { data } = await this.client.post('/portfolio/faucet', { userAddress });
     return data;
   }
+
+  // Reputation & Planning
+  async getReputation(agentId: string): Promise<{
+    agentId: string;
+    score: number;
+    tier: 'Unverified' | 'Provisional' | 'Trusted' | 'Elite';
+    totalStaked: string;
+    disputes: number;
+    successCount: number;
+  }> {
+    const { data } = await this.client.get(`/reputation/${agentId}`);
+    return data;
+  }
+
+  async stakeReputation(agentId: string, amount: string): Promise<any> {
+    const { data } = await this.client.post('/reputation/stake', { agentId, amount });
+    return data;
+  }
+
+  async reportMisbehavior(agentId: string): Promise<any> {
+    const { data } = await this.client.post('/reputation/report', { agentId });
+    return data;
+  }
+
+  async generatePlan(params: {
+    goal: string;
+    agentType: 'writing' | 'research' | 'governance' | 'butler';
+    spendingLimit: number;
+    allowedTargets: string[];
+  }): Promise<any> {
+    const { data } = await this.client.post('/reputation/plan', params);
+    return data;
+  }
 }
 
 export const apiClient = new ApiClient();
