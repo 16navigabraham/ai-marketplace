@@ -5,13 +5,24 @@ export function shortenAddress(address: string, chars = 4): string {
 
 export function formatNumber(num: string | number, decimals = 2): string {
   const n = typeof num === 'string' ? parseFloat(num) : num;
-  if (isNaN(n)) return '0';
+  if (!Number.isFinite(n)) return '0';
   return n.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: decimals });
 }
 
 export function formatPrice(priceWei: string | number, decimals = 18): string {
-  const price = typeof priceWei === 'string' ? BigInt(priceWei) : BigInt(priceWei);
-  const divisor = BigInt(10 ** decimals);
+  if (priceWei === null || priceWei === undefined || priceWei === '') {
+    return '0.0000';
+  }
+
+  const raw = String(priceWei).trim();
+
+  if (!/^-?\d+$/.test(raw)) {
+    const parsed = Number(raw);
+    return Number.isFinite(parsed) ? parsed.toFixed(4) : '0.0000';
+  }
+
+  const price = BigInt(raw);
+  const divisor = 10n ** BigInt(decimals);
   const wholePart = price / divisor;
   const fractionalPart = price % divisor;
 
@@ -21,7 +32,7 @@ export function formatPrice(priceWei: string | number, decimals = 18): string {
 
 export function formatUSD(value: number | string): string {
   const num = typeof value === 'string' ? parseFloat(value) : value;
-  if (isNaN(num)) return '$0.00';
+  if (!Number.isFinite(num)) return '$0.00';
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
     currency: 'USD',
@@ -32,12 +43,14 @@ export function formatUSD(value: number | string): string {
 
 export function formatPercent(value: number | string, decimals = 2): string {
   const num = typeof value === 'string' ? parseFloat(value) : value;
-  if (isNaN(num)) return '0%';
+  if (!Number.isFinite(num)) return '0%';
   return `${num.toFixed(decimals)}%`;
 }
 
 export function formatDate(date: Date | string): string {
   const d = typeof date === 'string' ? new Date(date) : date;
+  if (!(d instanceof Date) || Number.isNaN(d.getTime())) return 'N/A';
+
   return d.toLocaleDateString('en-US', {
     year: 'numeric',
     month: 'short',
@@ -49,6 +62,8 @@ export function formatDate(date: Date | string): string {
 
 export function formatTimeAgo(date: Date | string): string {
   const d = typeof date === 'string' ? new Date(date) : date;
+  if (!(d instanceof Date) || Number.isNaN(d.getTime())) return 'N/A';
+
   const now = new Date();
   const seconds = Math.floor((now.getTime() - d.getTime()) / 1000);
 

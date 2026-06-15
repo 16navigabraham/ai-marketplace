@@ -8,6 +8,7 @@ import { AgentToken } from '@/models/AgentToken';
 import { Trade } from '@/models/Trade';
 import { Portfolio } from '@/models/Portfolio';
 import { User } from '@/models/User';
+import { Nonce } from '@/models/Nonce';
 
 // Turso speaks libSQL over libsql:// (or https://). For remote databases the
 // auth token is appended as a query param. Anything else is treated as a local
@@ -34,7 +35,7 @@ export const AppDataSource = new DataSource({
   database,
   synchronize: env.DB_SYNCHRONIZE,
   logging: env.NODE_ENV === 'development',
-  entities: [Agent, AgentToken, Trade, Portfolio, User],
+  entities: [Agent, AgentToken, Trade, Portfolio, User, Nonce],
 });
 
 export async function initializeDatabase() {

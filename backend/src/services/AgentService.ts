@@ -25,6 +25,7 @@ export class AgentService {
   private agentRepository: Repository<Agent>;
   private agentTokenRepository: Repository<AgentToken>;
   private tradeRepository: Repository<Trade>;
+  private readonly PLACEHOLDER_TOKEN_ADDRESS = '0x0000000000000000000000000000000000000000';
 
   constructor() {
     this.agentRepository = AppDataSource.getRepository(Agent);
@@ -40,6 +41,23 @@ export class AgentService {
       });
 
       const savedAgent = await this.agentRepository.save(agent);
+
+      const tokens = input.chains.map((chain) =>
+        this.agentTokenRepository.create({
+          agentId: savedAgent.id,
+          chain,
+          contractAddress: this.PLACEHOLDER_TOKEN_ADDRESS,
+          totalSupply: '0',
+          circulatingSupply: '0',
+          price: '0',
+          marketCap: '0',
+        })
+      );
+
+      if (tokens.length > 0) {
+        await this.agentTokenRepository.save(tokens);
+      }
+
       logger.info(`Agent created: ${savedAgent.id}`, { creatorAddress: input.creatorAddress });
 
       return savedAgent;
@@ -59,6 +77,8 @@ export class AgentService {
       if (!agent) {
         throw new AppError('Agent not found', 404, 'AGENT_NOT_FOUND');
       }
+
+      await this.ensureAgentTokens(agent);
 
       return agent;
     } catch (error) {
@@ -151,6 +171,31 @@ export class AgentService {
       logger.error('Failed to register token address:', error);
       throw new AppError('Failed to register token address', 400, 'TOKEN_REGISTER_ERROR');
     }
+  }
+
+  private async ensureAgentTokens(agent: Agent): Promise<void> {
+    const chains = Array.isArray(agent.chains) ? agent.chains.filter(Boolean) : [];
+    const existingChains = new Set((agent.tokens || []).map((token) => token.chain));
+    const missingChains = chains.filter((chain) => !existingChains.has(chain));
+
+    if (missingChains.length === 0) {
+      return;
+    }
+
+    const tokens = missingChains.map((chain) =>
+      this.agentTokenRepository.create({
+        agentId: agent.id,
+        chain,
+        contractAddress: this.PLACEHOLDER_TOKEN_ADDRESS,
+        totalSupply: '0',
+        circulatingSupply: '0',
+        price: '0',
+        marketCap: '0',
+      })
+    );
+
+    const savedTokens = await this.agentTokenRepository.save(tokens);
+    agent.tokens = [...(agent.tokens || []), ...savedTokens];
   }
 
   async getAgentTokens(agentId: string): Promise<AgentToken[]> {

@@ -33,21 +33,27 @@ function normalizeRecord(value: unknown): Record<string, string> {
     : {};
 }
 
-function normalizeAgent(agent: Agent): Agent {
+function normalizeAgent(agent: Partial<Agent> | null | undefined): Agent {
+  const safeAgent = agent || {};
+
   return {
-    ...agent,
-    name: agent.name || 'Untitled Agent',
-    description: agent.description || '',
-    type: agent.type || 'writing',
-    chains: normalizeStringArray(agent.chains),
-    tokenAddresses: normalizeRecord(agent.tokenAddresses),
+    ...safeAgent,
+    id: safeAgent.id || '',
+    name: safeAgent.name || 'Untitled Agent',
+    description: safeAgent.description || '',
+    creatorAddress: safeAgent.creatorAddress || '',
+    type: safeAgent.type || 'writing',
+    chains: normalizeStringArray(safeAgent.chains),
+    tokenAddresses: normalizeRecord(safeAgent.tokenAddresses),
+    createdAt: safeAgent.createdAt || new Date(),
+    updatedAt: safeAgent.updatedAt || new Date(),
   };
 }
 
 function normalizePaginatedAgents(response: PaginatedResponse<Agent>): PaginatedResponse<Agent> {
   return {
     ...response,
-    data: Array.isArray(response.data) ? response.data.map(normalizeAgent) : [],
+    data: Array.isArray(response.data) ? response.data.map(normalizeAgent).filter((agent) => agent.id) : [],
   };
 }
 
@@ -160,7 +166,33 @@ class ApiClient {
   // Portfolio
   async getPortfolio(userAddress: string): Promise<Portfolio[]> {
     const { data } = await this.client.get(`/portfolio/${userAddress}`);
-    return data;
+    const holdings = Array.isArray(data)
+      ? data
+      : (data && typeof data === 'object' && 'holdings' in data && Array.isArray((data as any).holdings))
+        ? (data as any).holdings
+        : [];
+
+    return holdings.map((h: any) => ({
+      id: h.id || h.agentId,
+      userAddress: userAddress,
+      agentId: h.agentId,
+      chain: h.chain,
+      balance: h.balance || '0',
+      price: h.currentPrice || '0',
+      percentageChange: String(h.gainLossPercentage || '0'),
+      agent: {
+        id: h.agentId,
+        name: h.agentName || 'Unknown Agent',
+        description: '',
+        creatorAddress: '',
+        type: 'writing',
+        tokenAddresses: {},
+        chains: [h.chain],
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+      updatedAt: new Date(),
+    }));
   }
 
   async getPortfolioValue(userAddress: string): Promise<{ totalValue: string; change24h: string }> {
@@ -172,12 +204,14 @@ class ApiClient {
   async runInference(
     agentId: string,
     prompt: string,
-    type: 'writing' | 'research' | 'governance' | 'butler'
+    type: 'writing' | 'research' | 'governance' | 'butler',
+    payment?: any
   ): Promise<{ result: string; tokens: number }> {
     const { data } = await this.client.post('/inference/run', {
       agentId,
       prompt,
       type,
+      payment,
     });
     return data;
   }
@@ -202,6 +236,45 @@ class ApiClient {
 
   async createProposal(proposal: any): Promise<any> {
     const { data } = await this.client.post('/governance/proposals', proposal);
+    return data;
+  }
+
+  // Faucet
+  async claimFaucet(userAddress: string): Promise<{ success: boolean; hash: string }> {
+    const { data } = await this.client.post('/portfolio/faucet', { userAddress });
+    return data;
+  }
+
+  // Reputation & Planning
+  async getReputation(agentId: string): Promise<{
+    agentId: string;
+    score: number;
+    tier: 'Unverified' | 'Provisional' | 'Trusted' | 'Elite';
+    totalStaked: string;
+    disputes: number;
+    successCount: number;
+  }> {
+    const { data } = await this.client.get(`/reputation/${agentId}`);
+    return data;
+  }
+
+  async stakeReputation(agentId: string, amount: string): Promise<any> {
+    const { data } = await this.client.post('/reputation/stake', { agentId, amount });
+    return data;
+  }
+
+  async reportMisbehavior(agentId: string): Promise<any> {
+    const { data } = await this.client.post('/reputation/report', { agentId });
+    return data;
+  }
+
+  async generatePlan(params: {
+    goal: string;
+    agentType: 'writing' | 'research' | 'governance' | 'butler';
+    spendingLimit: number;
+    allowedTargets: string[];
+  }): Promise<any> {
+    const { data } = await this.client.post('/reputation/plan', params);
     return data;
   }
 }

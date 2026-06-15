@@ -12,17 +12,35 @@ interface LLMResponse {
 
 export class InferenceService {
   private veniceApiKey: string | undefined;
+  private geminiApiKey: string | undefined;
   private readonly veniceModel = 'llama-3.3-70b';
 
   constructor() {
     this.veniceApiKey = env.VENICE_API_KEY;
+    this.geminiApiKey = env.GEMINI_API_KEY;
   }
 
   async runInference(request: InferenceRequest): Promise<InferenceResponse> {
     try {
-      const response = this.veniceApiKey
-        ? await this.callVenice(request)
-        : await this.callMockLLM(request);
+      let response: LLMResponse;
+      if (this.geminiApiKey) {
+        try {
+          response = await this.callGemini(request);
+        } catch (error) {
+          const detail =
+            (error as { response?: { status?: number; data?: unknown } })?.response?.status ??
+            (error as Error)?.message ??
+            'unknown error';
+          logger.warn(`Gemini API call failed (${detail}); falling back to Venice/Mock`);
+          response = this.veniceApiKey
+            ? await this.callVenice(request)
+            : await this.callMockLLM(request);
+        }
+      } else if (this.veniceApiKey) {
+        response = await this.callVenice(request);
+      } else {
+        response = await this.callMockLLM(request);
+      }
 
       logger.info(`Inference completed for agent ${request.agentId}`, {
         model: response.model,
@@ -39,6 +57,45 @@ export class InferenceService {
       logger.error('Failed to run inference:', error);
       throw new AppError('Failed to run inference', 500, 'INFERENCE_ERROR');
     }
+  }
+
+  private async callGemini(request: InferenceRequest): Promise<LLMResponse> {
+    const systemPrompt = this.getSystemPrompt(request.type);
+
+    const response = await axios.post(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${this.geminiApiKey}`,
+      {
+        contents: [
+          {
+            parts: [
+              {
+                text: request.prompt,
+              },
+            ],
+          },
+        ],
+        systemInstruction: {
+          parts: [
+            {
+              text: systemPrompt,
+            },
+          ],
+        },
+        generationConfig: {
+          maxOutputTokens: 1024,
+        },
+      },
+      {
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      }
+    );
+
+    const content = response.data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    const tokens = response.data.usageMetadata?.candidatesTokenCount || 0;
+
+    return { content, tokens, model: 'gemini-1.5-flash' };
   }
 
   private async callVenice(request: InferenceRequest): Promise<LLMResponse> {
@@ -80,12 +137,53 @@ export class InferenceService {
   }
 
   private async callMockLLM(request: InferenceRequest): Promise<LLMResponse> {
-    // Mock implementation for development/testing
+    // Realistic simulated responses for development/testing
     const mockResponses: Record<string, string> = {
-      writing: `I've analyzed your request and composed a response. This is a mock response for the "${request.agentId}" writing agent. The prompt you provided was: "${request.prompt}". In a production environment, this would be replaced with actual LLM output from Venice.`,
-      research: `Research findings: Based on your query about "${request.prompt}", here are some insights. This mock research agent would provide detailed analysis and citations in production.`,
-      governance: `Governance analysis: For the proposal "${request.prompt}", here's my assessment of the governance implications. A production governance agent would analyze on-chain voting patterns and stakeholder positions.`,
-      butler: `Butler response: I'm ready to assist with "${request.prompt}". This mock butler agent would handle various administrative tasks and queries in production.`,
+      writing: `Thank you for reaching out. As Lexicon, I've processed your prompt: "${request.prompt}".
+
+Here is a structured draft tailored to your parameters:
+
+### Introduction
+To establish a strong voice, we must align on clear value propositions and speak directly to our audience. This draft addresses your query by outlining the core arguments and organizing them into actionable insights.
+
+### Key Takeaways
+1. Clarity over complexity: Keep descriptions concise and focused.
+2. Strong brand voice: Deliver ideas in a confident and authoritative tone.
+3. Direct engagement: End with a clear call to action to maximize impact.
+
+Let me know if you would like me to expand on any of these sections or adjust the tone.`,
+
+      research: `As Oracle Prime, here are the research findings regarding: "${request.prompt}".
+
+### Executive Summary
+Our analysis indicates that this domain is experiencing rapid growth, driven by key advancements in autonomous protocols and distributed execution layers.
+
+### Detailed Analysis
+- Infrastructure Layer: Low-latency execution is critical for securing on-chain state updates.
+- Economic Incentives: Sustainable tokenomic loops prevent protocol dilution and ensure long-term participant alignment.
+- Risk Assessment: Key vectors include oracle latency and smart contract logic complexity.
+
+*Sources: Distributed Consensus Quarterly, DeFi Analytics Labs Research Note 42.*`,
+
+      governance: `As Quorum, I have conducted a governance assessment of: "${request.prompt}".
+
+### Governance Impact Analysis
+1. Voting Power Dynamics: Staking lockups are critical to prevent hostile takeovers and flash-loan attacks on proposals.
+2. Participation Thresholds: Adjusting the quorum requirement ensures that only high-consensus proposals pass, though it may reduce overall velocity.
+3. Stakeholder Alignment: Ensuring that delegate voting patterns are transparent improves overall trust in DAO governance.
+
+### Recommendation
+We advise a gradual phase-in of these adjustments, paired with delegation incentives to maintain quorum.`,
+
+      butler: `Hello, I am Jeeves. I've processed your request: "${request.prompt}".
+
+Here is your requested schedule and action plan:
+
+- Task 1: Triage inbox and prioritize high-priority governance alerts.
+- Task 2: Verify smart account balance and confirm relayer capability status.
+- Task 3: Schedule sync for cross-chain execution updates.
+
+I am standing by to automate these actions or assist with further organization.`,
     };
 
     const response = mockResponses[request.type] || mockResponses['writing'];

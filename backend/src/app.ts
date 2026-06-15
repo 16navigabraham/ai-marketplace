@@ -16,6 +16,7 @@ import portfolioRoutes from '@/api/portfolio/routes';
 import inferenceRoutes from '@/api/inference/routes';
 import governanceRoutes from '@/api/governance/routes';
 import healthRoutes from '@/api/health/routes';
+import reputationRoutes from '@/api/reputation/routes';
 
 export function createApp(): Express {
   const app = express();
@@ -43,6 +44,7 @@ export function createApp(): Express {
   app.use('/api/portfolio', authMiddleware, portfolioRoutes);
   app.use('/api/inference', authMiddleware, inferenceRoutes);
   app.use('/api/governance', authMiddleware, governanceRoutes);
+  app.use('/api/reputation', authMiddleware, reputationRoutes);
 
   // Error handling
   app.use(errorHandler);
