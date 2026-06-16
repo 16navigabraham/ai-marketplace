@@ -5,13 +5,13 @@ import { useRouter } from 'next/navigation';
 import { motion, useReducedMotion, type Variants } from 'framer-motion';
 import { useAuth } from '@/providers/WalletProvider';
 import { checkOnboarded } from '@/lib/onboarding';
+import { RobotHero } from '@/components/RobotHero';
 import {
   Rocket,
   Globe,
   DollarSign,
   Building2,
   Loader2,
-  Network,
   ArrowRight,
   Sparkles,
   type LucideIcon,
@@ -148,15 +148,8 @@ export default function Home() {
         animate="show"
         className="relative text-center"
       >
-        <motion.div variants={item} className="mx-auto mb-8 w-fit">
-          <motion.div
-            className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-[#fff0a8] via-[#ffd166] to-[#ff9f1c] shadow-[0_22px_48px_-24px_rgba(255,190,76,0.95)]"
-            animate={reduce ? undefined : { y: [0, -7, 0] }}
-            transition={{ duration: 4.5, repeat: Infinity, ease: 'easeInOut' }}
-            whileHover={{ rotate: -6, scale: 1.06 }}
-          >
-            <Network className="h-8 w-8 text-[#211100]" strokeWidth={2} />
-          </motion.div>
+        <motion.div variants={item}>
+          <RobotHero />
         </motion.div>
 
         <motion.div variants={item} className="mb-6 flex justify-center">
