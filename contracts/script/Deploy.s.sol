@@ -8,6 +8,8 @@ import "../src/BondingCurve.sol";
 import "../src/VIRTUAL.sol";
 import "../src/Factory.sol";
 import "../src/Marketplace.sol";
+import "../src/ReputationScore.sol";
+import "../src/TrustStaking.sol";
 
 /// @title Deploy
 /// @notice Main deployment script for all AI Agents Marketplace contracts
@@ -19,6 +21,8 @@ contract Deploy is Script {
     address public virtualAddress;
     address public factoryAddress;
     address public marketplaceAddress;
+    address public reputationAddress;
+    address public trustStakingAddress;
 
     function run() public {
         uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
@@ -38,8 +42,8 @@ contract Deploy is Script {
         agentTokenAddress = address(agentToken);
         console.log("AgentToken implementation deployed at:", agentTokenAddress);
 
-        // Deploy BondingCurve contract
-        BondingCurve bondingCurve = new BondingCurve();
+        // Deploy BondingCurve contract (treasury = deployer receives protocol fees)
+        BondingCurve bondingCurve = new BondingCurve(vm.envAddress("DEPLOYER_ADDRESS"));
         bondingCurveAddress = address(bondingCurve);
         console.log("BondingCurve deployed at:", bondingCurveAddress);
 
@@ -57,10 +61,24 @@ contract Deploy is Script {
         agent.setMinter(factoryAddress, true);
         console.log("Factory authorized as Agent minter");
 
+        // Authorize the Factory to register token creators on the curve.
+        bondingCurve.setFactory(factoryAddress);
+        console.log("Factory authorized on BondingCurve");
+
         // Deploy Marketplace contract
         Marketplace marketplace = new Marketplace();
         marketplaceAddress = address(marketplace);
         console.log("Marketplace deployed at:", marketplaceAddress);
+
+        // Deploy ReputationScore (on-chain agent trust scores)
+        ReputationScore reputation = new ReputationScore();
+        reputationAddress = address(reputation);
+        console.log("ReputationScore deployed at:", reputationAddress);
+
+        // Deploy TrustStaking (native-ETH stake behind agents; treasury = deployer)
+        TrustStaking trustStaking = new TrustStaking(vm.envAddress("DEPLOYER_ADDRESS"));
+        trustStakingAddress = address(trustStaking);
+        console.log("TrustStaking deployed at:", trustStakingAddress);
 
         vm.stopBroadcast();
 
@@ -75,6 +93,8 @@ contract Deploy is Script {
         console.log("- VIRTUAL (Governance Token):", virtualAddress);
         console.log("- Factory:", factoryAddress);
         console.log("- Marketplace:", marketplaceAddress);
+        console.log("- ReputationScore:", reputationAddress);
+        console.log("- TrustStaking:", trustStakingAddress);
 
         // Save deployment addresses
         _saveDeploymentAddresses();
@@ -105,6 +125,14 @@ contract Deploy is Script {
         console.log(
             "export MARKETPLACE_ADDRESS=",
             marketplaceAddress
+        );
+        console.log(
+            "export REPUTATION_ADDRESS=",
+            reputationAddress
+        );
+        console.log(
+            "export TRUST_STAKING_ADDRESS=",
+            trustStakingAddress
         );
     }
 }

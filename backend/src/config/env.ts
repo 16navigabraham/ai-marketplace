@@ -36,6 +36,8 @@ const envSchema = z.object({
   FACTORY_ADDRESS: z.string().optional(),
   MARKETPLACE_CONTRACT_ADDRESS: z.string().optional(),
   GOVERNANCE_CONTRACT_ADDRESS: z.string().optional(),
+  REPUTATION_ADDRESS: z.string().optional(),
+  TRUST_STAKING_ADDRESS: z.string().optional(),
 
   // On-chain operator — backend wallet that mints agents via the Factory.
   // Reuse your funded Base Sepolia deployer key. If unset, on-chain minting is

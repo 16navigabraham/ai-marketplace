@@ -136,7 +136,7 @@ contract MarketplaceTest is Test {
 
     function testBuyFromOrder() public {
         uint256 amount = 100 * 10 ** 18;
-        uint256 totalPrice = amount * pricePerToken;
+        uint256 totalPrice = (amount * pricePerToken) / 1e18;
         uint256 fee = (totalPrice * 250) / 10000; // 2.5% default fee
         uint256 sellerProceeds = totalPrice - fee;
 
@@ -176,7 +176,7 @@ contract MarketplaceTest is Test {
     function testBuyPartialOrder() public {
         uint256 orderAmount = 100 * 10 ** 18;
         uint256 buyAmount = 50 * 10 ** 18;
-        uint256 totalPrice = buyAmount * pricePerToken;
+        uint256 totalPrice = (buyAmount * pricePerToken) / 1e18;
 
         vm.prank(seller);
         uint256 orderId = marketplace.createOrder(
@@ -195,7 +195,7 @@ contract MarketplaceTest is Test {
 
     function testBuyFullOrder() public {
         uint256 amount = 100 * 10 ** 18;
-        uint256 totalPrice = amount * pricePerToken;
+        uint256 totalPrice = (amount * pricePerToken) / 1e18;
 
         vm.prank(seller);
         uint256 orderId = marketplace.createOrder(
@@ -214,7 +214,7 @@ contract MarketplaceTest is Test {
 
     function testBuyFromOrderCannotBuyFromYourself() public {
         uint256 amount = 100 * 10 ** 18;
-        uint256 totalPrice = amount * pricePerToken;
+        uint256 totalPrice = (amount * pricePerToken) / 1e18;
 
         vm.prank(seller);
         uint256 orderId = marketplace.createOrder(
@@ -230,7 +230,7 @@ contract MarketplaceTest is Test {
 
     function testBuyWithExcessETH() public {
         uint256 amount = 100 * 10 ** 18;
-        uint256 totalPrice = amount * pricePerToken;
+        uint256 totalPrice = (amount * pricePerToken) / 1e18;
         uint256 excess = 1 ether;
 
         vm.prank(seller);
@@ -322,7 +322,7 @@ contract MarketplaceTest is Test {
 
     function testWithdrawFees() public {
         uint256 amount = 100 * 10 ** 18;
-        uint256 totalPrice = amount * pricePerToken;
+        uint256 totalPrice = (amount * pricePerToken) / 1e18;
 
         vm.prank(seller);
         uint256 orderId = marketplace.createOrder(
@@ -357,7 +357,7 @@ contract MarketplaceTest is Test {
 
     function testEmitTokensBought() public {
         uint256 amount = 100 * 10 ** 18;
-        uint256 totalPrice = amount * pricePerToken;
+        uint256 totalPrice = (amount * pricePerToken) / 1e18;
 
         vm.prank(seller);
         uint256 orderId = marketplace.createOrder(

@@ -5,13 +5,17 @@ import { User } from '@/models/User';
 import { logger } from '@/utils/logger';
 import { ContractService } from '@/services/ContractService';
 
+// The deployer/operator wallet — owns the seeded agents on-chain, so it earns
+// the creator fee on trades and the agents appear under its profile.
+const DEPLOYER_ADDRESS = '0x06fd7eDeb4fbCB626357222aDC2f8Eb5a051535b';
+
 const MOCK_AGENTS: Partial<Agent>[] = [
   {
     name: 'Lexicon',
     description: 'Long-form writing agent that drafts articles, threads, and release notes in your brand voice.',
-    creatorAddress: '0x742d35Cc6634C0532925a3b844Bc9e7595f42aE0',
+    creatorAddress: DEPLOYER_ADDRESS,
     type: 'writing',
-    chains: ['ethereum', 'polygon', 'base'],
+    chains: ['base'],
     tokenAddresses: {},
     totalHolders: 1284,
     marketCap: '5000000000000000000000',
@@ -19,9 +23,9 @@ const MOCK_AGENTS: Partial<Agent>[] = [
   {
     name: 'Oracle Prime',
     description: 'On-demand research analyst that summarizes whitepapers, audits tokenomics, and cites sources.',
-    creatorAddress: '0x742d35Cc6634C0532925a3b844Bc9e7595f42aE0',
+    creatorAddress: DEPLOYER_ADDRESS,
     type: 'research',
-    chains: ['ethereum', 'arbitrum'],
+    chains: ['base'],
     tokenAddresses: {},
     totalHolders: 2041,
     marketCap: '3000000000000000000000',
@@ -29,9 +33,9 @@ const MOCK_AGENTS: Partial<Agent>[] = [
   {
     name: 'Quorum',
     description: 'Governance strategist that analyzes proposals, models voting outcomes, and drafts delegate statements.',
-    creatorAddress: '0x123456789abcdef0123456789abcdef012345678',
+    creatorAddress: DEPLOYER_ADDRESS,
     type: 'governance',
-    chains: ['ethereum', 'polygon', 'arbitrum', 'base'],
+    chains: ['base'],
     tokenAddresses: {},
     totalHolders: 768,
     marketCap: '8000000000000000000000',
@@ -39,38 +43,41 @@ const MOCK_AGENTS: Partial<Agent>[] = [
   {
     name: 'Jeeves',
     description: 'Personal butler agent that schedules, triages your inbox, and automates repetitive on-chain tasks.',
-    creatorAddress: '0x987654321fedcba0987654321fedcba098765432',
+    creatorAddress: DEPLOYER_ADDRESS,
     type: 'butler',
-    chains: ['polygon', 'base'],
+    chains: ['base'],
     tokenAddresses: {},
     totalHolders: 3320,
     marketCap: '2000000000000000000000',
+  },
+  {
+    name: 'Sentinel',
+    description: 'Security research agent that scans contracts for known vulnerability patterns and flags risky approvals.',
+    creatorAddress: DEPLOYER_ADDRESS,
+    type: 'research',
+    chains: ['base'],
+    tokenAddresses: {},
+    totalHolders: 1567,
+    marketCap: '4500000000000000000000',
+  },
+  {
+    name: 'Maestro',
+    description: 'Content butler that turns rough notes into polished posts, schedules them, and tracks engagement.',
+    creatorAddress: DEPLOYER_ADDRESS,
+    type: 'writing',
+    chains: ['base'],
+    tokenAddresses: {},
+    totalHolders: 982,
+    marketCap: '2700000000000000000000',
   },
 ];
 
 const MOCK_USERS: Partial<User>[] = [
   {
-    address: '0x742d35Cc6634C0532925a3b844Bc9e7595f42aE0',
-    ensName: 'alice.eth',
-    username: 'alice',
-    bio: 'AI enthusiast and early adopter',
-    profileImage: 'https://api.placeholder.com/alice.jpg',
-    metadata: { joined: 'early', newsletter: true },
-  },
-  {
-    address: '0x123456789abcdef0123456789abcdef012345678',
-    ensName: 'bob.eth',
-    username: 'bob',
-    bio: 'Governance advocate',
-    profileImage: 'https://api.placeholder.com/bob.jpg',
-    metadata: { joined: 'early', newsletter: false },
-  },
-  {
-    address: '0xaaaabbbbccccddddeeeeffffaabbccddee112233',
-    username: 'charlie',
-    bio: 'Trading bot developer',
-    profileImage: 'https://api.placeholder.com/charlie.jpg',
-    metadata: { joined: 'recent' },
+    address: DEPLOYER_ADDRESS,
+    username: 'synapse',
+    bio: 'Creator of the seeded Synapse agents.',
+    metadata: { joined: 'early' },
   },
 ];
 
@@ -112,7 +119,8 @@ export async function seedDatabase() {
         ? await contractService.createOnchainAgent(
             agentData.name!,
             agentData.description!,
-            agentData.type as string
+            agentData.type as string,
+            agentData.creatorAddress!
           )
         : null;
 

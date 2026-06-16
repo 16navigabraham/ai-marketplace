@@ -44,7 +44,12 @@ export class AgentService {
       // operator is configured. Best-effort: if it fails or is disabled, the
       // agent is still created in the DB (with a placeholder token).
       const onchain = this.contractService.isEnabled()
-        ? await this.contractService.createOnchainAgent(input.name, input.description, input.type)
+        ? await this.contractService.createOnchainAgent(
+            input.name,
+            input.description,
+            input.type,
+            input.creatorAddress
+          )
         : null;
 
       const agent = this.agentRepository.create({

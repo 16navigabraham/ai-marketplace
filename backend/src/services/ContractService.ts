@@ -13,8 +13,13 @@ import { logger } from '@/utils/logger';
  */
 
 const FACTORY_ABI = [
-  'function createAgentWithToken(string name, string description, string agentType, string tokenName, string tokenSymbol) returns (uint256 agentTokenId, address tokenAddress)',
+  'function createAgentWithTokenFor(address creator, string name, string description, string agentType, string tokenName, string tokenSymbol) returns (uint256 agentTokenId, address tokenAddress)',
   'event AgentTokenCreated(uint256 indexed agentTokenId, address indexed tokenAddress, string name, string symbol, address indexed creator)',
+];
+
+const REPUTATION_ABI = [
+  'function initializeReputation(uint256 agentId)',
+  'function recordTaskCompletion(uint256 agentId, bool success)',
 ];
 
 export interface OnchainAgent {
@@ -27,6 +32,7 @@ export class ContractService {
   private provider?: ethers.JsonRpcProvider;
   private wallet?: ethers.Wallet;
   private factory?: ethers.Contract;
+  private reputation?: ethers.Contract;
 
   constructor() {
     const key = env.OPERATOR_PRIVATE_KEY;
@@ -39,9 +45,35 @@ export class ContractService {
       this.provider = new ethers.JsonRpcProvider(env.BASE_SEPOLIA_RPC);
       this.wallet = new ethers.Wallet(key, this.provider);
       this.factory = new ethers.Contract(factoryAddr, FACTORY_ABI, this.wallet);
+      if (env.REPUTATION_ADDRESS) {
+        this.reputation = new ethers.Contract(env.REPUTATION_ADDRESS, REPUTATION_ABI, this.wallet);
+      }
       logger.info(`ContractService ready (operator ${this.wallet.address})`);
     } catch (err) {
       logger.error('ContractService init failed:', err);
+    }
+  }
+
+  /** Initialize an agent's on-chain reputation (operator-only). Best-effort. */
+  async initReputation(agentId: string): Promise<void> {
+    if (!this.reputation) return;
+    try {
+      const tx = await this.reputation.initializeReputation(agentId);
+      await tx.wait();
+      logger.info(`Reputation initialized for agent ${agentId}`);
+    } catch (err) {
+      logger.warn(`initReputation failed for ${agentId}: ${(err as Error)?.message}`);
+    }
+  }
+
+  /** Record a completed task on-chain to move the reputation score. Best-effort. */
+  async recordTask(agentId: string, success: boolean): Promise<void> {
+    if (!this.reputation || !agentId) return;
+    try {
+      const tx = await this.reputation.recordTaskCompletion(agentId, success);
+      await tx.wait();
+    } catch (err) {
+      logger.warn(`recordTask failed for ${agentId}: ${(err as Error)?.message}`);
     }
   }
 
@@ -61,11 +93,18 @@ export class ContractService {
    * seeds the token's full supply into the BondingCurve (fair launch).
    * Returns the on-chain agent id + token address, or null if disabled/failed.
    */
-  async createOnchainAgent(name: string, description: string, type: string): Promise<OnchainAgent | null> {
+  async createOnchainAgent(
+    name: string,
+    description: string,
+    type: string,
+    creator: string
+  ): Promise<OnchainAgent | null> {
     if (!this.factory) return null;
     try {
       const symbol = this.symbolFor(name);
-      const tx = await this.factory.createAgentWithToken(
+      // Mint the agent to the real user so they own it + earn creator fees.
+      const tx = await this.factory.createAgentWithTokenFor(
+        creator,
         name,
         description,
         type,
@@ -96,6 +135,10 @@ export class ContractService {
       }
 
       logger.info(`On-chain agent minted: id=${agentId} token=${tokenAddress} tx=${tx.hash}`);
+
+      // Seed the agent's on-chain reputation (best-effort; won't block the mint).
+      await this.initReputation(agentId);
+
       return { agentId, tokenAddress, txHash: tx.hash };
     } catch (err) {
       logger.error('On-chain agent mint failed:', err);

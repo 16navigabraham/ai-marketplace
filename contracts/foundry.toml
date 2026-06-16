@@ -25,3 +25,9 @@ optimizer_runs = 1000
 [rpc_endpoints]
 base_sepolia = "${BASE_SEPOLIA_RPC}"
 eth_sepolia = "${ETH_SEPOLIA_RPC}"
+
+# Block-explorer verification — used by `forge script ... --verify`.
+# Basescan/Etherscan-V2 multichain key works for both networks below.
+[etherscan]
+base_sepolia = { key = "${ETHERSCAN_API_KEY}", chain = 84532, url = "https://api-sepolia.basescan.org/api" }
+eth_sepolia = { key = "${ETHERSCAN_API_KEY}", chain = 11155111 }

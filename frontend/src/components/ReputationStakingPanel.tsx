@@ -1,52 +1,56 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { apiClient } from '@/services/api';
-import { Award, AlertTriangle, PiggyBank, Loader2, ShieldCheck } from 'lucide-react';
+import { useState, useEffect, useCallback } from 'react';
+import { Award, PiggyBank, Loader2, ShieldCheck, ExternalLink } from 'lucide-react';
 import { useAuth } from '@/providers/WalletProvider';
-import { formatNumber } from '@/utils/formatters';
+import {
+  getOnchainReputation,
+  stakeOnAgent,
+  stakingEnabled,
+  type OnchainReputation,
+} from '@/lib/staking';
 
-export function ReputationStakingPanel({ agentId }: { agentId: string }) {
-  const { authenticated } = useAuth();
+/**
+ * On-chain Trust & Staking. Reads the agent's reputation + total staked from the
+ * ReputationScore / TrustStaking contracts, and lets a user stake real ETH
+ * behind the agent (1% protocol fee → treasury). Only available for agents that
+ * exist on-chain (have a numeric onchainId).
+ */
+export function ReputationStakingPanel({ onchainId }: { onchainId?: string }) {
+  const { authenticated, getEthersSigner } = useAuth();
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
-  const [stakeAmount, setStakeAmount] = useState('100');
-  const [reputation, setReputation] = useState<{
-    score: number;
-    tier: string;
-    totalStaked: string;
-    disputes: number;
-    successCount: number;
-  } | null>(null);
-  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [stakeAmount, setStakeAmount] = useState('0.01');
+  const [rep, setRep] = useState<OnchainReputation | null>(null);
+  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string; hash?: string } | null>(null);
 
-  const fetchReputation = async () => {
-    try {
-      const data = await apiClient.getReputation(agentId);
-      setReputation(data);
-    } catch (err) {
-      console.error('Failed to load reputation:', err);
-    } finally {
+  const available = stakingEnabled() && !!onchainId;
+
+  const load = useCallback(async () => {
+    if (!available) {
       setLoading(false);
+      return;
     }
-  };
+    setLoading(true);
+    const data = await getOnchainReputation(onchainId!);
+    setRep(data);
+    setLoading(false);
+  }, [available, onchainId]);
 
   useEffect(() => {
-    fetchReputation();
-  }, [agentId]);
+    load();
+  }, [load]);
 
   const handleStake = async () => {
     if (!stakeAmount || parseFloat(stakeAmount) <= 0) return;
     setActionLoading(true);
     setMessage(null);
     try {
-      const atoms = (parseFloat(stakeAmount) * 1e6).toString(); // USDC decimals
-      const res = await apiClient.stakeReputation(agentId, atoms);
-      setReputation(res.reputation);
-      setMessage({
-        type: 'success',
-        text: `Successfully staked ${stakeAmount} USDC (1% protocol fee routed to treasury).`,
-      });
+      const signer = await getEthersSigner();
+      if (!signer) throw new Error('Wallet not ready.');
+      const { hash } = await stakeOnAgent({ signer, agentId: onchainId!, amountEth: stakeAmount });
+      setMessage({ type: 'success', text: `Staked ${stakeAmount} ETH on-chain (1% fee to treasury).`, hash });
+      await load();
     } catch (err: any) {
       setMessage({ type: 'error', text: err.message || 'Staking failed.' });
     } finally {
@@ -54,39 +58,19 @@ export function ReputationStakingPanel({ agentId }: { agentId: string }) {
     }
   };
 
-  const handleReport = async () => {
-    if (
-      !confirm(
-        'Are you sure you want to file a dispute? Filing malicious reports will result in slashing of your own backing.'
-      )
-    )
-      return;
-    setActionLoading(true);
-    setMessage(null);
-    try {
-      const res = await apiClient.reportMisbehavior(agentId);
-      setReputation(res.reputation);
-      setMessage({
-        type: 'success',
-        text: 'Dispute filed. Agent reputation score slashed by 50 points.',
-      });
-    } catch (err: any) {
-      setMessage({ type: 'error', text: err.message || 'Dispute report failed.' });
-    } finally {
-      setActionLoading(false);
-    }
-  };
+  // Hidden entirely for DB-only agents / unconfigured staking — no fake UI.
+  if (!available) return null;
 
   if (loading) {
     return (
-      <div className="card p-6 flex items-center justify-center">
+      <div className="card flex items-center justify-center p-6">
         <Loader2 className="h-6 w-6 animate-spin text-clay-400" />
       </div>
     );
   }
 
-  if (!reputation) return null;
-
+  const score = rep?.score ?? 0;
+  const tier = rep?.tier ?? 'Unverified';
   const tierColors: Record<string, string> = {
     Elite: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/30',
     Trusted: 'text-cyan-400 bg-cyan-500/10 border-cyan-500/30',
@@ -95,102 +79,100 @@ export function ReputationStakingPanel({ agentId }: { agentId: string }) {
   };
 
   return (
-    <div className="card p-6 space-y-4 border-[#38260f]">
-      {/* Title */}
+    <div className="card space-y-4 border-[#38260f] p-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Award className="h-5 w-5 text-clay-400" />
-          <h3 className="font-semibold text-white">Trust & Staking</h3>
+          <h3 className="font-semibold text-white">Trust &amp; Staking</h3>
         </div>
-        <span
-          className={`chip border text-xs px-2.5 py-0.5 capitalize ${
-            tierColors[reputation.tier] || ''
-          }`}
-        >
-          {reputation.tier} Tier
+        <span className={`chip border px-2.5 py-0.5 text-xs capitalize ${tierColors[tier] || ''}`}>
+          {tier} Tier
         </span>
       </div>
 
       {/* Score bar */}
       <div className="space-y-1">
-        <div className="flex items-center justify-between text-xs font-mono text-slate-400">
+        <div className="flex items-center justify-between font-mono text-xs text-slate-400">
           <span>Reputation Score</span>
-          <span className="text-white font-semibold">{reputation.score} / 1000</span>
+          <span className="font-semibold text-white">{score} / 1000</span>
         </div>
-        <div className="h-2 w-full rounded-full bg-[#1e150b] overflow-hidden border border-[#38260f]">
+        <div className="h-2 w-full overflow-hidden rounded-full border border-[#38260f] bg-[#1e150b]">
           <div
             className="h-full bg-gradient-to-r from-[#ffb640] to-[#f59e1b] transition-all duration-500"
-            style={{ width: `${reputation.score / 10}%` }}
+            style={{ width: `${score / 10}%` }}
           />
         </div>
       </div>
 
-      {/* Stats row */}
-      <div className="grid grid-cols-2 gap-3 text-center py-1">
-        <div className="rounded-lg bg-[#130f08] border border-[#38260f] p-2">
-          <p className="text-[10px] text-slate-500 uppercase font-mono">Tasks Success</p>
-          <p className="text-lg font-bold text-white mt-0.5">{reputation.successCount}</p>
+      {/* Stats */}
+      <div className="grid grid-cols-2 gap-3 py-1 text-center">
+        <div className="rounded-lg border border-[#38260f] bg-[#130f08] p-2">
+          <p className="font-mono text-[10px] uppercase text-slate-500">Tasks Success</p>
+          <p className="mt-0.5 text-lg font-bold text-white">{rep?.taskSuccessCount ?? 0}</p>
         </div>
-        <div className="rounded-lg bg-[#130f08] border border-[#38260f] p-2">
-          <p className="text-[10px] text-slate-500 uppercase font-mono">Active Disputes</p>
-          <p className="text-lg font-bold text-rose-400 mt-0.5">{reputation.disputes}</p>
+        <div className="rounded-lg border border-[#38260f] bg-[#130f08] p-2">
+          <p className="font-mono text-[10px] uppercase text-slate-500">Disputes</p>
+          <p className="mt-0.5 text-lg font-bold text-rose-400">{rep?.disputeCount ?? 0}</p>
         </div>
       </div>
 
-      <div className="border-t border-[#38260f] pt-3 flex items-center justify-between text-sm">
-        <span className="text-slate-400">Reputation Staked</span>
-        <span className="font-semibold text-gradient-accent">
-          {formatNumber((parseFloat(reputation.totalStaked) / 1e6).toString(), 2)} USDC
+      <div className="flex items-center justify-between border-t border-[#38260f] pt-3 text-sm">
+        <span className="text-slate-400">Total Staked</span>
+        <span className="text-gradient-accent font-semibold">
+          {Number(rep?.totalStakedEth ?? '0').toLocaleString('en-US', { maximumFractionDigits: 4 })} ETH
         </span>
       </div>
 
-      {/* Actions */}
       {authenticated && (
         <div className="space-y-3 pt-2">
           {message && (
             <div
-              className={`p-2.5 rounded-lg border text-xs flex items-start gap-1.5 ${
+              className={`flex items-start gap-1.5 rounded-lg border p-2.5 text-xs ${
                 message.type === 'success'
-                  ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-300'
-                  : 'bg-rose-500/10 border-rose-500/20 text-rose-300'
+                  ? 'border-emerald-500/20 bg-emerald-500/10 text-emerald-300'
+                  : 'border-rose-500/20 bg-rose-500/10 text-rose-300'
               }`}
             >
-              <ShieldCheck className="h-4 w-4 shrink-0 mt-0.5" />
-              <span>{message.text}</span>
+              <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0" />
+              <span className="space-y-1">
+                <span className="block">{message.text}</span>
+                {message.hash && (
+                  <a
+                    href={`https://sepolia.basescan.org/tx/${message.hash}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 underline"
+                  >
+                    <ExternalLink className="h-3 w-3" /> View tx
+                  </a>
+                )}
+              </span>
             </div>
           )}
 
           <div className="flex gap-2">
             <input
               type="number"
+              step="0.001"
+              min="0"
               value={stakeAmount}
               onChange={(e) => setStakeAmount(e.target.value)}
               disabled={actionLoading}
-              className="w-full rounded-lg border border-[#493113] bg-[#0d0a05] px-3 py-2 font-mono text-white text-sm focus:border-clay-600 focus:outline-none"
-              placeholder="Amount to stake"
+              className="w-full rounded-lg border border-[#493113] bg-[#0d0a05] px-3 py-2 font-mono text-sm text-white focus:border-clay-600 focus:outline-none"
+              placeholder="ETH to stake"
             />
             <button
               onClick={handleStake}
               disabled={actionLoading || !stakeAmount}
-              className="btn-primary shrink-0 px-4 text-xs font-semibold flex items-center gap-1.5"
+              className="btn-primary flex shrink-0 items-center gap-1.5 px-4 text-xs font-semibold"
             >
-              {actionLoading ? (
-                <Loader2 className="h-3 w-3 animate-spin" />
-              ) : (
-                <PiggyBank className="h-3.5 w-3.5" />
-              )}
-              Stake
+              {actionLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : <PiggyBank className="h-3.5 w-3.5" />}
+              Stake ETH
             </button>
           </div>
-
-          <button
-            onClick={handleReport}
-            disabled={actionLoading}
-            className="w-full flex items-center justify-center gap-1.5 rounded-lg border border-rose-500/30 bg-rose-500/5 hover:bg-rose-500/10 px-4 py-2 text-xs font-medium text-rose-300 transition"
-          >
-            <AlertTriangle className="h-3.5 w-3.5 text-rose-400" />
-            Report Misbehavior & File Dispute
-          </button>
+          <p className="text-center text-[11px] text-slate-500">
+            Staking signals trust in this agent. 1% protocol fee, rest is reclaimable.
+          </p>
         </div>
       )}
     </div>

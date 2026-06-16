@@ -304,9 +304,7 @@ export default function AgentDetailPage({ params }: PageProps) {
           {userAddress ? (
             showTradeForm ? (
               <div className="card p-6">
-                <h2 className="mb-4 text-xl font-semibold text-white">
-                  {tradeType === 'buy' ? 'Buy' : 'Sell'} {agent.name}
-                </h2>
+                <h2 className="mb-4 text-xl font-semibold text-white">Trade {agent.name}</h2>
                 <TradeForm
                   agentName={agent.name}
                   currentPrice={(spotPrice || '0').replace(/,/g, '')}
@@ -347,8 +345,8 @@ export default function AgentDetailPage({ params }: PageProps) {
             </div>
           )}
 
-          {/* Trust and reputation staking backing */}
-          <ReputationStakingPanel agentId={agent.id} />
+          {/* On-chain trust & staking (only for agents minted on-chain) */}
+          <ReputationStakingPanel onchainId={(agent as { onchainId?: string }).onchainId} />
 
           {/* Gasless USDC transfer via the 1Shot relayer (EIP-7710 + 7702) */}
           <RelayPanel recipient={agent.creatorAddress} recipientLabel={agent.name} />

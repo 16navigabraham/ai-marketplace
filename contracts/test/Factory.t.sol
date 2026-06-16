@@ -24,12 +24,14 @@ contract FactoryTest is Test {
 
     function setUp() public {
         agent = new Agent();
-        bondingCurve = new BondingCurve();
+        bondingCurve = new BondingCurve(address(0xBEEF)); // treasury
         factory = new Factory(address(agent), address(bondingCurve));
         // Factory must be an authorized minter to create agents.
         agent.setMinter(address(factory), true);
         // Tests also mint agents directly as `creator`.
         agent.setMinter(creator, true);
+        // Factory must be allowed to register token creators on the curve.
+        bondingCurve.setFactory(address(factory));
     }
 
     function testCreateAgentWithToken() public {

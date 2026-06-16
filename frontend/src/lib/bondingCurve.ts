@@ -7,12 +7,13 @@
 
 export const BONDING_CURVE_ADDRESS =
   process.env.NEXT_PUBLIC_BONDING_CURVE_ADDRESS ||
-  '0x997FB663329ECFA2A02251De107317640a40738E';
+  '0x743803A019BD9B8D6856330272715294DDbdaF01';
 
 const RPC = process.env.NEXT_PUBLIC_BASE_SEPOLIA_RPC || 'https://sepolia.base.org';
 
 const CURVE_ABI = [
   'function getBuyPrice(address token, uint256 amount) view returns (uint256)',
+  'function getBuyCost(address token, uint256 amount) view returns (uint256)',
   'function getSellPrice(address token, uint256 amount) view returns (uint256)',
   'function getSupply(address token) view returns (uint256)',
   'function buy(address token, uint256 amount) payable',
@@ -115,7 +116,8 @@ export async function buyTokens(params: {
     const { ethers } = await import('ethers');
     const curve = new ethers.Contract(BONDING_CURVE_ADDRESS, CURVE_ABI, signer);
     const amount = ethers.parseUnits(String(amountTokens), 18);
-    const cost: bigint = await curve.getBuyPrice(token, amount);
+    // getBuyCost includes the 2% protocol+creator fees on top of the curve price.
+    const cost: bigint = await curve.getBuyCost(token, amount);
 
     // Small buffer so a price tick between quote and mine doesn't revert.
     const value = (cost * 101n) / 100n;

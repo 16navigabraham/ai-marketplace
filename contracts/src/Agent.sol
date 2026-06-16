@@ -76,47 +76,60 @@ contract Agent is ERC721, Ownable {
         emit MinterSet(minter, allowed);
     }
 
-    /// @notice Create a new agent NFT
-    /// @dev Restricted to the owner or an authorized minter (e.g. the Factory)
-    /// @param name The name of the agent
-    /// @param description The description of the agent
-    /// @param agentType The type of agent (writing, research, governance, butler)
-    /// @return tokenId The ID of the created agent NFT
+    /// @notice Create a new agent NFT owned by the caller
+    /// @dev Restricted to the owner or an authorized minter
     function createAgent(
         string memory name,
         string memory description,
         string memory agentType
     ) public onlyMinter returns (uint256) {
+        return createAgentFor(msg.sender, name, description, agentType);
+    }
+
+    /// @notice Create a new agent NFT owned by `creatorAddr`
+    /// @dev Lets the Factory mint the agent to the real user (not itself), so
+    /// ownership, metadata.creator, and the creator fee all point to the user.
+    /// @param creatorAddr The address that owns the agent and earns creator fees
+    /// @return tokenId The ID of the created agent NFT
+    function createAgentFor(
+        address creatorAddr,
+        string memory name,
+        string memory description,
+        string memory agentType
+    ) public onlyMinter returns (uint256) {
+        require(creatorAddr != address(0), "Invalid creator");
         require(bytes(name).length > 0, "Name cannot be empty");
         require(bytes(agentType).length > 0, "Agent type cannot be empty");
 
         _tokenIds.increment();
         uint256 tokenId = _tokenIds.current();
 
-        // _mint (not _safeMint): the caller is often the Factory contract, which
-        // doesn't implement onERC721Received. The token is used immediately, so
-        // the receiver-hook check isn't needed.
-        _mint(msg.sender, tokenId);
+        // _mint (not _safeMint): mint to the real creator.
+        _mint(creatorAddr, tokenId);
 
         agentMetadata[tokenId] = AgentMetadata({
             name: name,
             description: description,
             agentType: agentType,
-            creator: msg.sender,
+            creator: creatorAddr,
             createdAt: block.timestamp
         });
 
-        emit AgentCreated(tokenId, msg.sender, name, agentType);
+        emit AgentCreated(tokenId, creatorAddr, name, agentType);
 
         return tokenId;
     }
 
     /// @notice Set the ERC-20 token address for an agent
-    /// @dev Only the owner of the agent NFT can call this function
+    /// @dev The agent owner, an authorized minter (Factory), or the owner may set
+    /// it — the Factory needs this because the NFT is minted to the user, not itself.
     /// @param tokenId The ID of the agent
     /// @param tokenAddress The address of the ERC-20 token
     function setAgentTokenAddress(uint256 tokenId, address tokenAddress) public {
-        require(ownerOf(tokenId) == msg.sender, "Only token owner can set token address");
+        require(
+            ownerOf(tokenId) == msg.sender || minters[msg.sender] || msg.sender == owner(),
+            "Not authorized to set token address"
+        );
         require(tokenAddress != address(0), "Invalid token address");
 
         agentTokenAddress[tokenId] = tokenAddress;

@@ -71,7 +71,7 @@ contract AgentTest is Test {
 
         address tokenAddress = address(0x456);
         vm.prank(address(0x789));
-        vm.expectRevert("Only token owner can set token address");
+        vm.expectRevert("Not authorized to set token address");
         agent.setAgentTokenAddress(tokenId, tokenAddress);
     }
 }

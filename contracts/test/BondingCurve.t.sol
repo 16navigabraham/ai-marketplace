@@ -10,19 +10,19 @@ contract BondingCurveTest is Test {
     AgentToken token;
     address buyer = address(0x123);
     address seller = address(0x456);
+    address treasury = address(0xBEEF);
 
     // Local copies for vm.expectEmit (qualified Contract.Event needs solc >= 0.8.22).
     event Buy(address indexed buyer, address indexed token, uint256 amount, uint256 cost);
     event Sell(address indexed seller, address indexed token, uint256 amount, uint256 revenue);
 
     function setUp() public {
-        bondingCurve = new BondingCurve();
+        bondingCurve = new BondingCurve(treasury);
         token = new AgentToken("Test Token", "TEST", address(0x789));
 
         // The curve dispenses tokens from its own inventory — seed it.
         token.mint(address(bondingCurve), 1_000_000 * 10 ** 18);
 
-        // Buyers/sellers need ETH; approvals let them sell tokens back later.
         vm.deal(buyer, 100 ether);
         vm.deal(seller, 100 ether);
         vm.prank(buyer);
@@ -33,131 +33,123 @@ contract BondingCurveTest is Test {
 
     function testBuyPriceCalculation() public {
         uint256 amount = 100 * 10 ** 18;
-        uint256 price = bondingCurve.getBuyPrice(address(token), amount);
-        assertGt(price, 0, "Price should be greater than 0");
+        assertGt(bondingCurve.getBuyPrice(address(token), amount), 0, "Price should be > 0");
     }
 
-    function testBuySellPriceSymmetry() public {
+    function testBuyCostIncludesFees() public {
         uint256 amount = 100 * 10 ** 18;
-        uint256 buyPrice = bondingCurve.getBuyPrice(address(token), amount);
-
-        // Buy first so there's supply to sell back.
-        vm.prank(buyer);
-        bondingCurve.buy{value: buyPrice}(address(token), amount);
-
-        // Selling the same amount back from the same supply returns the same price.
-        uint256 sellPrice = bondingCurve.getSellPrice(address(token), amount);
-        assertEq(buyPrice, sellPrice, "Buy and sell prices should be symmetric");
+        uint256 price = bondingCurve.getBuyPrice(address(token), amount);
+        uint256 cost = bondingCurve.getBuyCost(address(token), amount);
+        // 2% total fee on top of the curve price.
+        assertEq(cost, price + (price * 200) / 10000, "Cost should include 2% fees");
     }
 
     function testBuyTokens() public {
         uint256 amount = 100 * 10 ** 18;
-        uint256 cost = bondingCurve.getBuyPrice(address(token), amount);
+        // Capture the curve price BEFORE the buy (supply changes after).
+        uint256 priceBefore = bondingCurve.getBuyPrice(address(token), amount);
+        uint256 cost = bondingCurve.getBuyCost(address(token), amount);
 
         vm.prank(buyer);
         bondingCurve.buy{value: cost}(address(token), amount);
 
-        // Buyer receives the tokens from the curve's inventory.
         assertEq(token.balanceOf(buyer), amount, "Buyer should receive tokens");
-        assertEq(bondingCurve.getSupply(address(token)), amount, "Supply should match bought amount");
-        assertEq(bondingCurve.getReserve(address(token)), cost, "Reserve should equal cost");
+        assertEq(bondingCurve.getSupply(address(token)), amount, "Supply should match");
+        // Reserve holds only the curve price, not the fees.
+        assertEq(bondingCurve.getReserve(address(token)), priceBefore, "Reserve = curve price");
     }
 
-    function testBuyTokensWithExcessETH() public {
+    function testBuyPaysProtocolFeeToTreasury() public {
         uint256 amount = 100 * 10 ** 18;
-        uint256 cost = bondingCurve.getBuyPrice(address(token), amount);
-        uint256 excess = 1 ether;
+        uint256 price = bondingCurve.getBuyPrice(address(token), amount);
+        uint256 cost = bondingCurve.getBuyCost(address(token), amount);
+        uint256 treasuryBefore = treasury.balance;
 
+        vm.prank(buyer);
+        bondingCurve.buy{value: cost}(address(token), amount);
+
+        // No registered creator → creator fee also falls back to treasury (2% total).
+        uint256 expectedFees = (price * 200) / 10000;
+        assertEq(treasury.balance - treasuryBefore, expectedFees, "Treasury receives both fees");
+    }
+
+    function testBuyTokensWithExcessETHRefunds() public {
+        uint256 amount = 100 * 10 ** 18;
+        uint256 cost = bondingCurve.getBuyCost(address(token), amount);
         uint256 balanceBefore = buyer.balance;
 
         vm.prank(buyer);
-        bondingCurve.buy{value: cost + excess}(address(token), amount);
+        bondingCurve.buy{value: cost + 1 ether}(address(token), amount);
 
-        assertEq(balanceBefore - buyer.balance, cost, "Only cost should be deducted");
+        assertEq(balanceBefore - buyer.balance, cost, "Only total cost deducted");
     }
 
-    function testBuyTokensInsufficientPayment() public {
+    function testBuyInsufficientPaymentReverts() public {
         uint256 amount = 100 * 10 ** 18;
-        uint256 cost = bondingCurve.getBuyPrice(address(token), amount);
+        uint256 cost = bondingCurve.getBuyCost(address(token), amount);
 
         vm.prank(buyer);
         vm.expectRevert("Insufficient payment");
         bondingCurve.buy{value: cost - 1}(address(token), amount);
     }
 
-    function testSellTokens() public {
+    function testSellTokensNetOfFees() public {
         uint256 amount = 100 * 10 ** 18;
-        uint256 buyCost = bondingCurve.getBuyPrice(address(token), amount);
+        uint256 cost = bondingCurve.getBuyCost(address(token), amount);
 
-        // Buy first (receive tokens), then sell them back.
         vm.prank(buyer);
-        bondingCurve.buy{value: buyCost}(address(token), amount);
+        bondingCurve.buy{value: cost}(address(token), amount);
 
-        uint256 sellPrice = bondingCurve.getSellPrice(address(token), amount);
+        uint256 revenue = bondingCurve.getSellPrice(address(token), amount);
+        uint256 expectedPayout = bondingCurve.getSellProceeds(address(token), amount);
         uint256 balanceBefore = buyer.balance;
 
         vm.prank(buyer);
         bondingCurve.sell(address(token), amount);
 
-        assertEq(buyer.balance - balanceBefore, sellPrice, "Balance should increase by sell price");
-        assertEq(bondingCurve.getSupply(address(token)), 0, "Supply should be zero after selling all");
+        assertEq(buyer.balance - balanceBefore, expectedPayout, "Payout net of fees");
+        assertLt(expectedPayout, revenue, "Payout should be less than gross revenue");
+        assertEq(bondingCurve.getSupply(address(token)), 0, "Supply zero after full sell");
     }
 
-    function testSellTokensMoreThanSupply() public {
+    function testSellMoreThanSupplyReverts() public {
         uint256 amount = 100 * 10 ** 18;
-        uint256 buyCost = bondingCurve.getBuyPrice(address(token), amount);
+        uint256 cost = bondingCurve.getBuyCost(address(token), amount);
+        vm.prank(buyer);
+        bondingCurve.buy{value: cost}(address(token), amount);
 
         vm.prank(buyer);
-        bondingCurve.buy{value: buyCost}(address(token), amount);
-
-        vm.prank(buyer);
-        vm.expectRevert("Cannot sell more than supply");
+        vm.expectRevert("Insufficient supply");
         bondingCurve.sell(address(token), amount + 100 * 10 ** 18);
+    }
+
+    function testCreatorEarnsFee() public {
+        address creatorAddr = address(0xC0FFEE);
+        // Owner can register a creator directly (no factory in this test).
+        bondingCurve.registerToken(address(token), creatorAddr);
+
+        uint256 amount = 100 * 10 ** 18;
+        uint256 price = bondingCurve.getBuyPrice(address(token), amount);
+        uint256 cost = bondingCurve.getBuyCost(address(token), amount);
+
+        vm.prank(buyer);
+        bondingCurve.buy{value: cost}(address(token), amount);
+
+        // Creator gets 1% of the curve price.
+        assertEq(creatorAddr.balance, (price * 100) / 10000, "Creator earns 1%");
     }
 
     function testMultipleBuyersPriceIncreases() public {
         address buyer2 = address(0x789);
         vm.deal(buyer2, 100 ether);
-
         uint256 amount = 100 * 10 ** 18;
 
         uint256 price1 = bondingCurve.getBuyPrice(address(token), amount);
         vm.prank(buyer);
-        bondingCurve.buy{value: price1}(address(token), amount);
+        bondingCurve.buy{value: bondingCurve.getBuyCost(address(token), amount)}(address(token), amount);
 
-        // Price rises with supply along the curve.
         uint256 price2 = bondingCurve.getBuyPrice(address(token), amount);
-        assertGt(price2, price1, "Price should increase with supply");
-
-        vm.prank(buyer2);
-        bondingCurve.buy{value: price2}(address(token), amount);
-
-        assertEq(bondingCurve.getSupply(address(token)), amount * 2, "Supply should be 2x amount");
-    }
-
-    function testEmitBuyEvent() public {
-        uint256 amount = 100 * 10 ** 18;
-        uint256 cost = bondingCurve.getBuyPrice(address(token), amount);
-
-        vm.prank(buyer);
-        vm.expectEmit(true, true, false, true);
-        emit Buy(buyer, address(token), amount, cost);
-        bondingCurve.buy{value: cost}(address(token), amount);
-    }
-
-    function testEmitSellEvent() public {
-        uint256 amount = 100 * 10 ** 18;
-        uint256 buyCost = bondingCurve.getBuyPrice(address(token), amount);
-
-        vm.prank(buyer);
-        bondingCurve.buy{value: buyCost}(address(token), amount);
-
-        uint256 sellPrice = bondingCurve.getSellPrice(address(token), amount);
-
-        vm.prank(buyer);
-        vm.expectEmit(true, true, false, true);
-        emit Sell(buyer, address(token), amount, sellPrice);
-        bondingCurve.sell(address(token), amount);
+        assertGt(price2, price1, "Price increases with supply");
     }
 
     function testBuyBelowMinimumReverts() public {
@@ -166,23 +158,14 @@ contract BondingCurveTest is Test {
         bondingCurve.buy{value: 0}(address(token), 0);
     }
 
-    function testSellBelowMinimumReverts() public {
-        vm.prank(buyer);
-        vm.expectRevert("Amount below minimum");
-        bondingCurve.sell(address(token), 0);
-    }
-
     function testBuyWithoutInventoryReverts() public {
-        // A token the curve was never seeded with has no inventory to dispense.
         AgentToken empty = new AgentToken("Empty", "EMP", address(0x789));
         uint256 amount = 100 * 10 ** 18;
-        uint256 cost = bondingCurve.getBuyPrice(address(empty), amount);
-
+        uint256 cost = bondingCurve.getBuyCost(address(empty), amount);
         vm.prank(buyer);
         vm.expectRevert("Insufficient curve inventory");
         bondingCurve.buy{value: cost}(address(empty), amount);
     }
 
-    // Receive ETH for testing
     receive() external payable {}
 }

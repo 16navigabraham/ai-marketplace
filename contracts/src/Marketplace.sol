@@ -119,8 +119,10 @@ contract Marketplace is IMarketplace, Ownable, ReentrancyGuard {
         require(amount <= order.amount, "Amount exceeds available");
         require(order.seller != msg.sender, "Cannot buy from yourself");
 
-        // Calculate price
-        uint256 totalPrice = amount * order.pricePerToken;
+        // Calculate price. `pricePerToken` is the price of one whole token (1e18
+        // base units), so normalize by the token's 18 decimals to avoid an
+        // astronomically large total when `amount` is denominated in wei.
+        uint256 totalPrice = (amount * order.pricePerToken) / 1e18;
         require(msg.value >= totalPrice, "Insufficient payment");
 
         // Calculate fee

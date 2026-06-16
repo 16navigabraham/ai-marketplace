@@ -24,12 +24,30 @@ contract BondingCurve is Ownable, ReentrancyGuard {
     /// @notice Minimum trade size: one whole token (avoids zero-cost dust trades)
     uint256 public constant MIN_AMOUNT = PRECISION;
 
+    /// @notice Protocol fee in basis points, taken on buy and sell (1%)
+    uint256 public constant PROTOCOL_FEE_BPS = 100;
+
+    /// @notice Creator fee in basis points, paid to the agent creator (1%)
+    uint256 public constant CREATOR_FEE_BPS = 100;
+
     /// @notice Mapping from token address to its tracked supply
     /// @dev This is the supply tracked by the bonding curve, not the ERC-20 total supply
     mapping(address => uint256) public supply;
 
     /// @notice Mapping from token address to its ETH reserve
     mapping(address => uint256) public reserve;
+
+    /// @notice Token => the agent creator who earns the creator fee on trades
+    mapping(address => address) public creator;
+
+    /// @notice Protocol treasury that receives the protocol fee
+    address public treasury;
+
+    /// @notice The Factory allowed to register a token's creator
+    address public factory;
+
+    /// @notice Emitted when trade fees are paid out
+    event FeesPaid(address indexed token, uint256 protocolFee, uint256 creatorFee);
 
     /// @notice Emitted when tokens are bought
     /// @param buyer The address of the buyer
@@ -49,6 +67,39 @@ contract BondingCurve is Ownable, ReentrancyGuard {
         uint256 amount,
         uint256 revenue
     );
+
+    /// @param _treasury Protocol treasury receiving the protocol fee
+    constructor(address _treasury) {
+        require(_treasury != address(0), "Invalid treasury");
+        treasury = _treasury;
+    }
+
+    /// @notice Set the Factory permitted to register token creators (owner only)
+    function setFactory(address _factory) external onlyOwner {
+        require(_factory != address(0), "Invalid factory");
+        factory = _factory;
+    }
+
+    /// @notice Update the protocol treasury (owner only)
+    function setTreasury(address _treasury) external onlyOwner {
+        require(_treasury != address(0), "Invalid treasury");
+        treasury = _treasury;
+    }
+
+    /// @notice Register the creator that earns the creator fee for a token
+    /// @dev Called by the Factory when it seeds a new token into the curve
+    function registerToken(address token, address creatorAddr) external {
+        require(msg.sender == factory || msg.sender == owner(), "Not authorized");
+        require(creator[token] == address(0), "Already registered");
+        creator[token] = creatorAddr;
+    }
+
+    /// @notice Total ETH a buyer must send: curve cost + protocol + creator fees
+    function getBuyCost(address token, uint256 amount) public view returns (uint256) {
+        uint256 cost = getBuyPrice(token, amount);
+        uint256 fees = (cost * (PROTOCOL_FEE_BPS + CREATOR_FEE_BPS)) / 10000;
+        return cost + fees;
+    }
 
     /// @notice Calculate the price to buy a specific amount of tokens
     /// @param token The address of the token
@@ -101,7 +152,10 @@ contract BondingCurve is Ownable, ReentrancyGuard {
         require(amount >= MIN_AMOUNT, "Amount below minimum");
 
         uint256 cost = getBuyPrice(token, amount);
-        require(msg.value >= cost, "Insufficient payment");
+        uint256 protocolFee = (cost * PROTOCOL_FEE_BPS) / 10000;
+        uint256 creatorFee = (cost * CREATOR_FEE_BPS) / 10000;
+        uint256 totalCost = cost + protocolFee + creatorFee;
+        require(msg.value >= totalCost, "Insufficient payment");
 
         // The curve must hold enough inventory to deliver to the buyer.
         require(
@@ -109,24 +163,44 @@ contract BondingCurve is Ownable, ReentrancyGuard {
             "Insufficient curve inventory"
         );
 
-        // Effects before interactions (reentrancy-safe).
+        // Effects before interactions (reentrancy-safe). Only `cost` backs the
+        // reserve; fees are paid out separately.
         supply[token] += amount;
         reserve[token] += cost;
 
-        // Deliver tokens TO the buyer (this is the fix — a bonding curve dispenses
-        // tokens for ETH; it does not pull tokens from the buyer).
+        // Deliver tokens TO the buyer.
         require(
             IERC20(token).transfer(msg.sender, amount),
             "Token transfer failed"
         );
 
-        // Refund excess ETH
-        if (msg.value > cost) {
-            (bool success, ) = payable(msg.sender).call{value: msg.value - cost}("");
-            require(success, "Refund failed");
+        _payFees(token, protocolFee, creatorFee);
+
+        // Refund any ETH above the total cost.
+        if (msg.value > totalCost) {
+            (bool refund, ) = payable(msg.sender).call{value: msg.value - totalCost}("");
+            require(refund, "Refund failed");
         }
 
         emit Buy(msg.sender, token, amount, cost);
+    }
+
+    /// @dev Routes protocol fee to treasury and creator fee to the agent creator.
+    function _payFees(address token, uint256 protocolFee, uint256 creatorFee) internal {
+        if (protocolFee > 0 && treasury != address(0)) {
+            (bool ok, ) = payable(treasury).call{value: protocolFee}("");
+            require(ok, "Protocol fee transfer failed");
+        }
+        address c = creator[token];
+        if (creatorFee > 0 && c != address(0)) {
+            (bool ok, ) = payable(c).call{value: creatorFee}("");
+            require(ok, "Creator fee transfer failed");
+        } else if (creatorFee > 0 && treasury != address(0)) {
+            // No registered creator — fall back to treasury so ETH isn't stuck.
+            (bool ok, ) = payable(treasury).call{value: creatorFee}("");
+            require(ok, "Creator fee fallback failed");
+        }
+        emit FeesPaid(token, protocolFee, creatorFee);
     }
 
     /// @notice Sell tokens for ETH
@@ -151,11 +225,25 @@ contract BondingCurve is Ownable, ReentrancyGuard {
             "Token transfer failed"
         );
 
-        // Pay the seller their ETH revenue.
-        (bool success, ) = payable(msg.sender).call{value: revenue}("");
+        // Skim fees from the seller's revenue.
+        uint256 protocolFee = (revenue * PROTOCOL_FEE_BPS) / 10000;
+        uint256 creatorFee = (revenue * CREATOR_FEE_BPS) / 10000;
+        uint256 payout = revenue - protocolFee - creatorFee;
+
+        // Pay the seller their net ETH revenue.
+        (bool success, ) = payable(msg.sender).call{value: payout}("");
         require(success, "ETH transfer failed");
 
-        emit Sell(msg.sender, token, amount, revenue);
+        _payFees(token, protocolFee, creatorFee);
+
+        emit Sell(msg.sender, token, amount, payout);
+    }
+
+    /// @notice Net ETH a seller receives after fees.
+    function getSellProceeds(address token, uint256 amount) public view returns (uint256) {
+        uint256 revenue = getSellPrice(token, amount);
+        uint256 fees = (revenue * (PROTOCOL_FEE_BPS + CREATOR_FEE_BPS)) / 10000;
+        return revenue - fees;
     }
 
     /// @notice Get the ETH reserve for a token

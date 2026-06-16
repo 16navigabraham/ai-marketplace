@@ -5,6 +5,11 @@ import "./Agent.sol";
 import "./AgentToken.sol";
 import "openzeppelin-contracts/contracts/access/Ownable.sol";
 
+/// @notice Minimal hook into the BondingCurve to register a token's creator.
+interface IBondingCurveRegistry {
+    function registerToken(address token, address creatorAddr) external;
+}
+
 /// @title Factory
 /// @notice Factory contract for creating agent tokens and managing agent creation
 /// @dev Deploys new AgentToken instances for each agent
@@ -60,16 +65,31 @@ contract Factory is Ownable {
         string memory tokenName,
         string memory tokenSymbol
     ) public returns (uint256 agentTokenId, address tokenAddress) {
+        // Default: the caller is the creator/owner.
+        return createAgentWithTokenFor(msg.sender, name, description, agentType, tokenName, tokenSymbol);
+    }
+
+    /// @notice Create an agent + token owned by `creator` (used by the backend
+    /// operator so the real user owns the agent and earns creator fees).
+    function createAgentWithTokenFor(
+        address creator,
+        string memory name,
+        string memory description,
+        string memory agentType,
+        string memory tokenName,
+        string memory tokenSymbol
+    ) public returns (uint256 agentTokenId, address tokenAddress) {
+        require(creator != address(0), "Invalid creator");
         require(bytes(tokenName).length > 0, "Token name cannot be empty");
         require(bytes(tokenSymbol).length > 0, "Token symbol cannot be empty");
 
-        // Create agent NFT
-        agentTokenId = agent.createAgent(name, description, agentType);
+        // Mint the agent NFT to the real creator.
+        agentTokenId = agent.createAgentFor(creator, name, description, agentType);
 
-        // Create agent token
+        // Create the token (registers the creator on the curve internally).
         tokenAddress = _createAgentToken(agentTokenId, tokenName, tokenSymbol);
 
-        // Set the token address on the agent NFT
+        // Set the token address on the agent NFT (Factory is an authorized minter).
         agent.setAgentTokenAddress(agentTokenId, tokenAddress);
 
         return (agentTokenId, tokenAddress);
@@ -137,12 +157,15 @@ contract Factory is Ownable {
             "Curve seeding failed"
         );
 
+        // Get creator from agent metadata
+        Agent.AgentMetadata memory metadata = agent.getAgentMetadata(agentTokenId);
+
+        // Register the creator on the curve so they earn the creator fee on trades.
+        IBondingCurveRegistry(bondingCurve).registerToken(tokenAddress, metadata.creator);
+
         // Store token address
         tokenAddresses[agentTokenId] = tokenAddress;
         createdTokens.push(tokenAddress);
-
-        // Get creator from agent metadata
-        Agent.AgentMetadata memory metadata = agent.getAgentMetadata(agentTokenId);
 
         emit AgentTokenCreated(
             agentTokenId,
