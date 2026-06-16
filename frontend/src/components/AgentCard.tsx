@@ -76,9 +76,9 @@ export function AgentCard({
           </span>
         </div>
 
-        <div className="px-6 pb-6">
+        <div className="relative z-10 px-6 pb-6">
           {/* Avatar overlapping the banner */}
-          <div className="-mt-8 mb-3 flex items-end justify-between">
+          <div className="relative z-10 -mt-8 mb-3 flex items-end justify-between">
             <div className="rounded-2xl ring-4 ring-[#23170a]">
               {agent.avatarUrl ? (
                 <img src={agent.avatarUrl} alt={name} className="h-16 w-16 rounded-2xl object-cover" />

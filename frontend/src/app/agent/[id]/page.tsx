@@ -151,8 +151,8 @@ export default function AgentDetailPage({ params }: PageProps) {
               )}
             </div>
 
-            <div className="px-6 pb-6 sm:px-8">
-              <div className="-mt-12 mb-4 flex items-end gap-5">
+            <div className="relative z-10 px-6 pb-6 sm:px-8">
+              <div className="relative z-10 -mt-12 mb-4 flex items-end gap-5">
                 <div className="shrink-0 rounded-2xl ring-4 ring-[#23170a]">
                   {agent.avatarUrl ? (
                     <img src={agent.avatarUrl} alt={agent.name} className="h-24 w-24 rounded-2xl object-cover" />
