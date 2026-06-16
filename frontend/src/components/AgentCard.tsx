@@ -23,11 +23,11 @@ interface AgentCardProps {
   onSelect?: (agent: Agent) => void;
 }
 
-const TYPE_META: Record<string, { icon: LucideIcon; label: string }> = {
-  writing: { icon: PenLine, label: 'Writing' },
-  research: { icon: FlaskConical, label: 'Research' },
-  governance: { icon: Building2, label: 'Governance' },
-  butler: { icon: Bot, label: 'Butler' },
+const TYPE_META: Record<string, { icon: LucideIcon; label: string; from: string; to: string }> = {
+  writing: { icon: PenLine, label: 'Writing', from: '#ff9f1c', to: '#ffd166' },
+  research: { icon: FlaskConical, label: 'Research', from: '#f39a1f', to: '#ffb640' },
+  governance: { icon: Building2, label: 'Governance', from: '#d77a12', to: '#ffb640' },
+  butler: { icon: Bot, label: 'Butler', from: '#ffc14d', to: '#fff0a8' },
 };
 
 /** Deterministic cover-gradient hue from the agent seed (matches the avatar). */
@@ -69,9 +69,12 @@ export function AgentCard({
           }}
         >
           <div className="absolute inset-0 opacity-[0.15] [background-image:radial-gradient(circle_at_1px_1px,#fff_1px,transparent_0)] [background-size:14px_14px]" />
-          {/* Type pill */}
-          <span className="absolute right-3 top-3 inline-flex items-center gap-1 rounded-full bg-black/40 px-2.5 py-1 text-[11px] font-medium text-white backdrop-blur-sm">
-            <TypeIcon className="h-3 w-3" />
+          {/* Type emblem — gradient app-icon badge */}
+          <span
+            className="absolute right-3 top-3 inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-[11px] font-semibold text-[#211100] shadow-[0_6px_16px_-8px_rgba(255,184,55,0.9),inset_0_1px_0_rgba(255,255,255,0.45)]"
+            style={{ backgroundImage: `linear-gradient(135deg, ${meta.from}, ${meta.to})` }}
+          >
+            <TypeIcon className="h-3 w-3" strokeWidth={2.5} />
             {meta.label}
           </span>
         </div>

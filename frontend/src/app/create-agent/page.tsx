@@ -9,13 +9,26 @@ import { AgentType } from '@/types';
 import { PageHeader } from '@/components/PageHeader';
 import { BackButton } from '@/components/BackButton';
 import { CHAIN_OPTIONS } from '@/config/chains';
-import { Wallet, AlertCircle, Loader2, Sparkles, ShieldCheck } from 'lucide-react';
+import { motion, useReducedMotion } from 'framer-motion';
+import {
+  Wallet,
+  AlertCircle,
+  Loader2,
+  Sparkles,
+  ShieldCheck,
+  PenLine,
+  FlaskConical,
+  Building2,
+  Bot,
+  Check,
+  type LucideIcon,
+} from 'lucide-react';
 
-const AGENT_TYPES: { label: string; value: AgentType }[] = [
-  { label: 'Writing', value: 'writing' },
-  { label: 'Research', value: 'research' },
-  { label: 'Governance', value: 'governance' },
-  { label: 'Butler', value: 'butler' },
+const AGENT_TYPES: { label: string; value: AgentType; icon: LucideIcon; from: string; to: string }[] = [
+  { label: 'Writing', value: 'writing', icon: PenLine, from: '#ff9f1c', to: '#ffd166' },
+  { label: 'Research', value: 'research', icon: FlaskConical, from: '#f39a1f', to: '#ffb640' },
+  { label: 'Governance', value: 'governance', icon: Building2, from: '#d77a12', to: '#ffb640' },
+  { label: 'Butler', value: 'butler', icon: Bot, from: '#ffc14d', to: '#fff0a8' },
 ];
 
 
@@ -23,6 +36,7 @@ export default function CreateAgentPage() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const userAddress = useAppStore((state) => state.userAddress);
+  const reduce = useReducedMotion();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -132,7 +146,13 @@ export default function CreateAgentPage() {
         subtitle="Deploy your agent and configure its reputation card and delegation bounds."
       />
 
-      <form onSubmit={handleSubmit} className="card space-y-6 p-8">
+      <motion.form
+        onSubmit={handleSubmit}
+        className="card space-y-6 p-8"
+        initial={{ opacity: 0, y: reduce ? 0 : 18 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+      >
         <div>
           <h3 className="text-md font-semibold text-white mb-2">1. Identity Details</h3>
           <div className="space-y-4">
@@ -163,18 +183,40 @@ export default function CreateAgentPage() {
 
             <div>
               <label className="mb-2 block text-sm font-medium text-slate-300">Agent Type</label>
-              <select
-                name="type"
-                value={formData.type}
-                onChange={handleInputChange}
-                className={inputClass}
-              >
-                {AGENT_TYPES.map((t) => (
-                  <option key={t.value} value={t.value} className="bg-slate-800">
-                    {t.label}
-                  </option>
-                ))}
-              </select>
+              <div className="grid grid-cols-2 gap-3">
+                {AGENT_TYPES.map((t) => {
+                  const Icon = t.icon;
+                  const active = formData.type === t.value;
+                  return (
+                    <motion.button
+                      key={t.value}
+                      type="button"
+                      onClick={() => setFormData((prev) => ({ ...prev, type: t.value }))}
+                      whileHover={{ y: -3 }}
+                      whileTap={{ scale: 0.97 }}
+                      className={`relative flex items-center gap-3 rounded-xl border px-4 py-3 text-left transition ${
+                        active
+                          ? 'border-[#ffb640] bg-[#2a1c0b]'
+                          : 'border-[#493113] bg-[#23170a] hover:border-[#76501d]'
+                      }`}
+                    >
+                      <span
+                        className="relative flex h-10 w-10 items-center justify-center overflow-hidden rounded-xl shadow-[0_8px_18px_-10px_rgba(255,184,55,0.9),inset_0_1px_0_rgba(255,255,255,0.45)]"
+                        style={{ backgroundImage: `linear-gradient(135deg, ${t.from}, ${t.to})` }}
+                      >
+                        <span className="pointer-events-none absolute -right-2 -top-2 h-7 w-7 rounded-full bg-white/25 blur-[1px]" />
+                        <Icon className="relative h-5 w-5 text-[#211100]" strokeWidth={2.25} />
+                      </span>
+                      <span className="text-sm font-semibold text-white">{t.label}</span>
+                      {active && (
+                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-clay-400">
+                          <Check className="h-4 w-4" strokeWidth={3} />
+                        </span>
+                      )}
+                    </motion.button>
+                  );
+                })}
+              </div>
             </div>
           </div>
         </div>
@@ -291,7 +333,13 @@ export default function CreateAgentPage() {
           </div>
         )}
 
-        <button type="submit" disabled={isLoading} className="btn-primary w-full">
+        <motion.button
+          type="submit"
+          disabled={isLoading}
+          className="btn-primary w-full"
+          whileHover={isLoading ? undefined : { scale: 1.02 }}
+          whileTap={isLoading ? undefined : { scale: 0.98 }}
+        >
           {isLoading ? (
             <>
               <Loader2 className="h-4 w-4 animate-spin" /> Deploying...
@@ -301,8 +349,8 @@ export default function CreateAgentPage() {
               <Sparkles className="h-4 w-4" /> Deploy Agent
             </>
           )}
-        </button>
-      </form>
+        </motion.button>
+      </motion.form>
     </main>
   );
 }

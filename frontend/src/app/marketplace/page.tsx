@@ -1,5 +1,6 @@
 'use client';
 
+import { motion, useReducedMotion, type Variants } from 'framer-motion';
 import { useRequireAuth } from '@/hooks/useRequireAuth';
 import { useAgents } from '@/hooks/useAgent';
 import { AgentCard } from '@/components/AgentCard';
@@ -10,6 +11,16 @@ import { PackageOpen, ServerCrash } from 'lucide-react';
 export default function MarketplacePage() {
   const { authenticated, isLoading: authLoading } = useRequireAuth();
   const { data, isLoading: agentsLoading, isError, refetch } = useAgents();
+  const reduce = useReducedMotion();
+
+  const container: Variants = {
+    hidden: {},
+    show: { transition: { staggerChildren: reduce ? 0 : 0.07 } },
+  };
+  const item: Variants = {
+    hidden: { opacity: 0, y: reduce ? 0 : 18 },
+    show: { opacity: 1, y: 0, transition: { duration: 0.5, ease: [0.22, 1, 0.36, 1] } },
+  };
 
   if (authLoading) return <Spinner />;
   if (!authenticated) return null;
@@ -38,13 +49,18 @@ export default function MarketplacePage() {
           }
         />
       ) : agents.length > 0 ? (
-        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-          {agents.map((agent, i) => (
-            <div key={agent.id} className="animate-fade-up" style={{ animationDelay: `${i * 60}ms` }}>
+        <motion.div
+          variants={container}
+          initial="hidden"
+          animate="show"
+          className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3"
+        >
+          {agents.map((agent) => (
+            <motion.div key={agent.id} variants={item}>
               <AgentCard agent={agent} />
-            </div>
+            </motion.div>
           ))}
-        </div>
+        </motion.div>
       ) : (
         <EmptyState
           icon={PackageOpen}

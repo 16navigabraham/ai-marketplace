@@ -18,6 +18,7 @@
     "@web3auth/modal": "^9.7.0",
     "axios": "^1.6.0",
     "ethers": "^6.16.0",
+    "framer-motion": "^12.40.0",
     "lucide-react": "^1.17.0",
     "next": "^14.1.0",
     "react": "^18.2.0",

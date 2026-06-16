@@ -5,7 +5,24 @@ import { useAppStore } from '@/store/useAppStore';
 import { apiClient } from '@/services/api';
 import { shortenAddress, formatCompact } from '@/utils/formatters';
 import { PageHeader, Spinner } from '@/components/PageHeader';
-import { Vote, Lock, FileText, Gauge, Check, X, Loader2, AlertCircle, Plus } from 'lucide-react';
+import { motion, useReducedMotion, type Variants } from 'framer-motion';
+import { Vote, Lock, FileText, Gauge, Check, X, Loader2, AlertCircle, Plus, type LucideIcon } from 'lucide-react';
+
+const STAT_GRADIENTS: { from: string; to: string }[] = [
+  { from: '#ff9f1c', to: '#ffd166' },
+  { from: '#f39a1f', to: '#ffb640' },
+  { from: '#ffc14d', to: '#fff0a8' },
+  { from: '#d77a12', to: '#ffb640' },
+];
+
+const gridContainer: Variants = {
+  hidden: {},
+  show: { transition: { staggerChildren: 0.07 } },
+};
+const gridItem: Variants = {
+  hidden: { opacity: 0, y: 16 },
+  show: { opacity: 1, y: 0, transition: { duration: 0.5, ease: [0.22, 1, 0.36, 1] } },
+};
 
 interface Proposal {
   id: string;
@@ -60,12 +77,17 @@ export default function GovernancePage() {
       />
 
       {/* Stats */}
-      <div className="mb-10 grid grid-cols-2 gap-4 sm:grid-cols-4">
-        <StatCard icon={FileText} label="Proposals" value={formatCompact(proposals.length)} />
-        <StatCard icon={Gauge} label="Active" value={formatCompact(activeCount)} />
-        <StatCard icon={Vote} label="Voting Power" value={formatCompact(votingPower.power)} />
-        <StatCard icon={Lock} label="veVIRTUAL" value={formatCompact(votingPower.veVIRTUAL)} />
-      </div>
+      <motion.div
+        variants={gridContainer}
+        initial="hidden"
+        animate="show"
+        className="mb-10 grid grid-cols-2 gap-4 sm:grid-cols-4"
+      >
+        <StatCard icon={FileText} label="Proposals" value={formatCompact(proposals.length)} idx={0} />
+        <StatCard icon={Gauge} label="Active" value={formatCompact(activeCount)} idx={1} />
+        <StatCard icon={Vote} label="Voting Power" value={formatCompact(votingPower.power)} idx={2} />
+        <StatCard icon={Lock} label="veVIRTUAL" value={formatCompact(votingPower.veVIRTUAL)} idx={3} />
+      </motion.div>
 
       <div className="mb-5 flex items-center justify-between gap-4">
         <h2 className="text-xl font-semibold text-white">Active Proposals</h2>
@@ -77,16 +99,17 @@ export default function GovernancePage() {
       {isLoading ? (
         <Spinner />
       ) : proposals.length > 0 ? (
-        <div className="space-y-4">
+        <motion.div variants={gridContainer} initial="hidden" animate="show" className="space-y-4">
           {proposals.map((p) => (
-            <ProposalCard
-              key={p.id}
-              proposal={p}
-              canVote={!!userAddress}
-              onVoted={fetchData}
-            />
+            <motion.div key={p.id} variants={gridItem}>
+              <ProposalCard
+                proposal={p}
+                canVote={!!userAddress}
+                onVoted={fetchData}
+              />
+            </motion.div>
           ))}
-        </div>
+        </motion.div>
       ) : (
         <div className="card flex flex-col items-center justify-center px-6 py-20 text-center">
           <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl border border-[#493113] bg-[#23170a]">
@@ -103,21 +126,30 @@ function StatCard({
   icon: Icon,
   label,
   value,
+  idx,
 }: {
-  icon: typeof Vote;
+  icon: LucideIcon;
   label: string;
   value: string;
+  idx: number;
 }) {
+  const g = STAT_GRADIENTS[idx % STAT_GRADIENTS.length];
   return (
-    <div className="card p-5">
-      <div className="mb-2 flex items-center gap-2 text-slate-400">
-        <Icon className="h-4 w-4 shrink-0" />
-        <span className="truncate text-xs">{label}</span>
+    <motion.div variants={gridItem} whileHover={{ y: -4 }} className="card p-5">
+      <div className="mb-3 flex items-center gap-2.5">
+        <span
+          className="relative flex h-9 w-9 items-center justify-center overflow-hidden rounded-xl shadow-[0_8px_18px_-10px_rgba(255,184,55,0.9),inset_0_1px_0_rgba(255,255,255,0.45)]"
+          style={{ backgroundImage: `linear-gradient(135deg, ${g.from}, ${g.to})` }}
+        >
+          <span className="pointer-events-none absolute -right-2 -top-2 h-6 w-6 rounded-full bg-white/25 blur-[1px]" />
+          <Icon className="relative h-4 w-4 text-[#211100]" strokeWidth={2.5} />
+        </span>
+        <span className="truncate text-xs text-slate-400">{label}</span>
       </div>
       <p className="truncate text-2xl font-bold text-white" title={value}>
         {value}
       </p>
-    </div>
+    </motion.div>
   );
 }
 
@@ -326,7 +358,12 @@ function VoteBar({
         <span className="text-slate-500">{pct}%</span>
       </div>
       <div className="h-2 w-full overflow-hidden rounded-full bg-[#30200c]">
-        <div className={`h-2 rounded-full transition-all ${color}`} style={{ width: `${pct}%` }} />
+        <motion.div
+          className={`h-2 rounded-full ${color}`}
+          initial={{ width: 0 }}
+          animate={{ width: `${pct}%` }}
+          transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
+        />
       </div>
     </div>
   );

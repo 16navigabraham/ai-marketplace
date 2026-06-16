@@ -8,6 +8,7 @@ import { formatNumber, formatUSD, shortenAddress } from '@/utils/formatters';
 import { PortfolioTable } from '@/components/PortfolioTable';
 import { PageHeader, Spinner } from '@/components/PageHeader';
 import { Portfolio } from '@/types';
+import { motion } from 'framer-motion';
 import { Wallet, Layers, TrendingUp, TrendingDown, Inbox } from 'lucide-react';
 
 export default function PortfolioPage() {
@@ -62,26 +63,50 @@ export default function PortfolioPage() {
 
       {/* Stats */}
       <div className="mb-8 grid grid-cols-1 gap-5 sm:grid-cols-2">
-        <div className="card p-6">
-          <div className="mb-3 flex items-center gap-2 text-slate-400">
-            <TrendingUp className="h-4 w-4" />
-            <span className="text-sm">Total Value</span>
+        <motion.div
+          className="card p-6"
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+          whileHover={{ y: -4 }}
+        >
+          <div className="mb-3 flex items-center gap-2.5">
+            <span
+              className="relative flex h-9 w-9 items-center justify-center overflow-hidden rounded-xl shadow-[0_8px_18px_-10px_rgba(255,184,55,0.9),inset_0_1px_0_rgba(255,255,255,0.45)]"
+              style={{ backgroundImage: 'linear-gradient(135deg, #ff9f1c, #ffd166)' }}
+            >
+              <span className="pointer-events-none absolute -right-2 -top-2 h-6 w-6 rounded-full bg-white/25 blur-[1px]" />
+              <TrendingUp className="relative h-4 w-4 text-[#211100]" strokeWidth={2.5} />
+            </span>
+            <span className="text-sm text-slate-400">Total Value</span>
           </div>
           <h2 className="text-3xl font-bold text-white">{formatUSD(parseFloat(value.totalValue))}</h2>
           <p className={`mt-2 flex items-center gap-1 text-sm ${isNegative ? 'text-red-400' : 'text-emerald-400'}`}>
             {isNegative ? <TrendingDown className="h-3.5 w-3.5" /> : <TrendingUp className="h-3.5 w-3.5" />}
             {value.change24h} (24h)
           </p>
-        </div>
+        </motion.div>
 
-        <div className="card p-6">
-          <div className="mb-3 flex items-center gap-2 text-slate-400">
-            <Layers className="h-4 w-4" />
-            <span className="text-sm">Holdings</span>
+        <motion.div
+          className="card p-6"
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.08, ease: [0.22, 1, 0.36, 1] }}
+          whileHover={{ y: -4 }}
+        >
+          <div className="mb-3 flex items-center gap-2.5">
+            <span
+              className="relative flex h-9 w-9 items-center justify-center overflow-hidden rounded-xl shadow-[0_8px_18px_-10px_rgba(255,184,55,0.9),inset_0_1px_0_rgba(255,255,255,0.45)]"
+              style={{ backgroundImage: 'linear-gradient(135deg, #d77a12, #ffb640)' }}
+            >
+              <span className="pointer-events-none absolute -right-2 -top-2 h-6 w-6 rounded-full bg-white/25 blur-[1px]" />
+              <Layers className="relative h-4 w-4 text-[#211100]" strokeWidth={2.5} />
+            </span>
+            <span className="text-sm text-slate-400">Holdings</span>
           </div>
           <h2 className="text-3xl font-bold text-white">{formatNumber(portfolio.length)}</h2>
           <p className="mt-2 text-sm text-slate-400">Unique agents</p>
-        </div>
+        </motion.div>
       </div>
 
       {/* Table */}
