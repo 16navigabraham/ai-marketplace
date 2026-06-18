@@ -36,6 +36,7 @@ export function Header() {
     { label: 'Portfolio', href: '/portfolio' },
     { label: 'Create Agent', href: '/create-agent' },
     { label: 'Governance', href: '/governance' },
+    { label: 'Docs', href: 'https://synapse-docs-iota.vercel.app', external: true },
   ];
 
   // Prefer the smart account address (the on-chain actor) when available.
@@ -57,12 +58,14 @@ export function Header() {
           </Link>
 
           {/* Desktop Navigation */}
-          {authenticated && (
-            <nav className="hidden items-center gap-1 md:flex">
-              {navItems.map((item) => (
+          <nav className="hidden items-center gap-1 md:flex">
+            {authenticated ? (
+              navItems.map((item) => (
                 <Link
                   key={item.href}
                   href={item.href}
+                  target={item.external ? '_blank' : undefined}
+                  rel={item.external ? 'noopener noreferrer' : undefined}
                   className={`rounded-lg px-3.5 py-2 text-sm font-medium transition ${
                     isActive(item.href)
                       ? 'bg-[#30200c] text-cyan-300'
@@ -71,9 +74,18 @@ export function Header() {
                 >
                   {item.label}
                 </Link>
-              ))}
-            </nav>
-          )}
+              ))
+            ) : (
+              <Link
+                href="https://synapse-docs-iota.vercel.app"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="rounded-lg px-3.5 py-2 text-sm font-medium text-slate-400 hover:bg-[#23170a] hover:text-white transition"
+              >
+                Docs
+              </Link>
+            )}
+          </nav>
 
           {/* Auth Section */}
           <div className="flex items-center gap-3">
@@ -100,12 +112,14 @@ export function Header() {
 
         {/* Mobile Navigation */}
         {isMenuOpen && (
-          <nav className="md:hidden mt-4 pt-4 border-t border-slate-700 space-y-2">
-            {authenticated &&
+          <nav className="md:hidden mt-4 pt-4 border-t border-[#493113] space-y-2">
+            {authenticated ? (
               navItems.map((item) => (
                 <Link
                   key={item.href}
                   href={item.href}
+                  target={item.external ? '_blank' : undefined}
+                  rel={item.external ? 'noopener noreferrer' : undefined}
                   onClick={() => setIsMenuOpen(false)}
                   className={`block px-4 py-2 rounded-lg transition ${
                     isActive(item.href)
@@ -115,7 +129,18 @@ export function Header() {
                 >
                   {item.label}
                 </Link>
-              ))}
+              ))
+            ) : (
+              <Link
+                href="https://synapse-docs-iota.vercel.app"
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={() => setIsMenuOpen(false)}
+                className="block px-4 py-2 rounded-lg text-slate-300 hover:bg-[#23170a] hover:text-white transition"
+              >
+                Docs
+              </Link>
+            )}
 
             {/* Mobile Auth */}
             {authenticated && walletAddress ? (
